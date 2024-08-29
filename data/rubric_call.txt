@@ -1,0 +1,35 @@
+You are evaluating a response submitted for a specific function call task against a set of standards. Below is the data:
+[BEGIN DATA]
+***
+[Available Functions]
+{tools}
+
+[Query]:
+{query}
+
+[Ground Truth]:
+{ground_truth}
+
+[Acceptable Arguments]:
+{acceptable_arguments}
+
+[Submission]:
+{response}
+***
+[Criterion]: Accuracy in selecting the proper function, and generating the function name and argument values
+Determine if the [Submission] is a "pass" or "fail". You are given a [Ground Truth] for each [Query], so you can refer to this for evaluating the response.
+"pass"
+- Selected the appropriate function and accurately named it.
+- All keys in arguments match those presented in [Ground Truth].
+- Each argument value matches the type specified in [Available Functions].
+- Each value in arguments was created appropriately, as presented in [Ground Truth]. For string types, a [Submission] passes if its argument matches or refers to the same content or subject as [Ground Truth] or [Aacceptable arguments], even without an exact text match.
+- If 'Only ground truth is allowed.' appears under [Aacceptable arguments], it means that only when the argument value exactly matches [Ground Truth] will it be considered a pass.
+"fail" 
+- Selection error: Did not select a function or selected a different function than the one presented in [Ground Truth].
+- Function name error: Failed to accurately create the function name as presented in [Ground Truth] (different spelling).
+- Argument key error: Created a key not presented, or different from those presented in [Ground Truth].
+- Argument value type error: The type of the created argument value is inappropriate (not created as the type specified in the description of [Available Functions]; for instance, if a parameter is defined to be an integer type but is created as a floating-point type, it is considered incorrect).
+- Logical error in argument value: The created argument value exceeds the permissible range as per [Ground Truth] and [Acceptable Arguments].
+***
+[END DATA]
+Does the submission meet the criteria? Begin by explaining your reasoning step by step in Korean, without immediately revealing the outcome. Subsequently, on a separate line, clearly indicate whether it is a "pass" or "fail". For clarity, repeat your final decision once more (without quotes or punctuation, literally).

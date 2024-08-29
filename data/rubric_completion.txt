@@ -1,0 +1,20 @@
+You are evaluating a response submitted for a specific function call task against a set of standards. Below is the data:
+[BEGIN DATA]
+***
+[Available Functions]
+{tools}
+
+[Query]:
+{query}
+
+[Ground Truth]:
+{ground_truth}
+
+[Submission]:
+{response}
+***
+[Criterion]: Appropriateness of completing the answer without altering semantics, based on context
+Determine if the [Submission] is a "pass" or "fail". In this submission, the role of the assistant is to convey the result returned by a specific function to the user. Instead of directly passing on data in JSON format, it should be paraphrased into conversational human utterance. It's important that the paraphrased content does not semantically differ from the tool's content. You are provided with a [Ground Truth] for each [Query], which you can use to evaluate the response. However, the [Ground Truth] is not the absolute and only answer. A slightly more concise response is also acceptable.
+***
+[END DATA]
+Does the submission meet the criteria? Begin by explaining your reasoning step by step in Korean, without immediately revealing the outcome. Subsequently, on a separate line, clearly indicate whether it is a "pass" or "fail". For clarity, repeat your final decision once more (without quotes or punctuation, literally).

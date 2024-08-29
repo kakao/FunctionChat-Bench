@@ -1,0 +1,27 @@
+You are evaluating a response submitted for a specific function call task against a set of standards. Below is the data:
+[BEGIN DATA]
+***
+[Available Functions]
+{tools}
+
+[Query]:
+{query}
+
+[Ground Truth]:
+{ground_truth}
+
+[Submission]:
+{response}
+***
+[Criterion]: Detecting the relevance of the [Query] to the function call functionality or [Available Functions]
+Evaluate whether it's a "pass" or a "fail".
+In the [Query], it presents a scenario that does not necessitate a tool call. You are given a [Ground Truth] for each [Query], so you can refer to this for evaluating the response.
+"pass" 
+- For user statements that didn't require a function call, the model leveraged its available knowledge to interact naturally.
+- When there's a need for an external tool or real-time information beyond the capabilities of the language model, and the [Available Functions] don't cover these needs, it's explained that the feature isn't provided. Therefore, it's clarified that the question cannot be answered or the request cannot be fulfilled.  
+"fail" 
+- A tool was called improperly or unnecessarily.
+- The task was not rejected despite requiring an external tool or real-time information not covered by the language model and [Available Functions], leading to an inaccurate claim that it could be performed or had been performed.
+***
+[END DATA]
+Does the submission meet the criteria? Begin by explaining your reasoning step by step in Korean, without immediately revealing the outcome. Subsequently, on a separate line, clearly indicate whether it is a "pass" or "fail". For clarity, repeat your final decision once more (without quotes or punctuation, literally).

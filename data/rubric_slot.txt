@@ -1,0 +1,28 @@
+You are evaluating a response submitted for a specific function call task against a set of standards. Below is the data:
+[BEGIN DATA]
+***
+[Available Functions]
+{tools}
+
+[Query]:
+{query}
+
+[Ground Truth]:
+{ground_truth}
+
+[Submission]:
+{response}
+***
+[Criterion]: Occurrence of a proper slot filling question
+Evaluate whether it's a "pass" or a "fail".
+In the [Query], a user asks the assistant a question or makes a request, and in [Available Functions], there exists a suitable function to perform this task, but there is a lack of required parameter values needed to call the function. In this [Submission], the assistant is required to ask the user for any additional information necessary to invoke the appropriate function and complete the task. You are given a [Ground Truth] for each [Query], so you can refer to this for evaluating the response.
+"pass"
+- Appropriate questions for slot filling were asked. (It is not an issue if the 'function call' or 'tool call' item is null.)
+"fail" 
+- Tool call missing required information
+- Tool call with incorrect information: Hallucinated values not found in the [Query].
+- Fail of function selection: Called a different, inappropriate function instead of the one that should be called (as can be verified through the [Ground Truth]). 
+- Answered arbitrarily based on their own knowledge without considering the function call. 
+***
+[END DATA]
+Does the submission meet the criteria? Begin by explaining your reasoning step by step in Korean, without immediately revealing the outcome. Subsequently, on a separate line, clearly indicate whether it is a "pass" or "fail". For clarity, repeat your final decision once more (without quotes or punctuation, literally).
