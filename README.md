@@ -6,7 +6,7 @@ The FunctionChat-Bench is a benchmark dataset specifically designed to evaluate 
 
 This dataset is built on Korean dialogs data and is meticulously crafted to precisely assess various functionalities required in both single-turn and multi-turn situations.
 
-![FunctionChat-Bench-img](https://media.github.kakaocorp.com/user/11319/files/7d44fd67-2a93-4ae5-8c30-b5ea0265add7)
+![FunctionChat-Bench-img](https://github.com/kakao/FunctionChat-Bench/blob/main/img/example-img.png)
 
 ## Dataset Composition
 
