@@ -57,6 +57,7 @@ def default_eval_options(f):
 
 def singlecall_eval_options(f):
     f = click.option('--tools_type', prompt='tools type', help='tools_type = {exact, 4_random, 4_close, 8_random, 8_close}')(f)
+    f = click.option('--only_exact', prompt='evaluate exact match', help='only exact match(True, False)', cls=DefaultDebugPromptOptions)(f)
     return f
 
 
@@ -102,7 +103,7 @@ def singlecall(model,
                input_path, tools_type,
                system_prompt_path,
                temperature, api_key, base_url, model_path,
-               reset, sample, debug,
+               reset, sample, debug, only_exact,
                gcloud_project_id, gcloud_location):
 
     eval_type = inspect.stack()[0][3]
@@ -131,7 +132,7 @@ def singlecall(model,
     EvaluationHandler(eval_type).evaluate(
         api_request_list, api_response_list,
         eval_file_path, eval_log_file_path,
-        reset, sample, debug
+        reset, sample, debug, only_exact
     )
 
 

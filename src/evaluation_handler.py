@@ -150,9 +150,10 @@ class EvaluationHandler:
             print(f"error : load to json {e}")
             return False
         # argument 할루시네이션 
-        for key in j_p_func_args.items():
+        for key, val in j_p_func_args.items():
             if key not in j_g_func_args:
                 return False
+        pass_arguments = []
         for key, answer in j_g_func_args.items():
             try:
                 predict = j_p_func_args.get(key, None)
@@ -162,16 +163,25 @@ class EvaluationHandler:
             if answer is not None and predict is None:
                 return False
             if compare_value(predict, answer) is False:
-                return False
-            if acceptable_arguments:
-                if key in acceptable_arguments:
-                    if isinstance(acceptable_arguments[key], list):
-                        for acc_answer in acceptable_arguments[key]:
+                if acceptable_arguments:
+                    if key in acceptable_arguments:
+                        if isinstance(acceptable_arguments[key], list):
+                            for acc_answer in acceptable_arguments[key]:
+                                if compare_value(predict, acc_answer) is False:
+                                    return False
+                                else:
+                                    pass_arguments.append(key)
+                                    break
+                        elif isinstance(acceptable_arguments[key], str):
+                            acc_answer = acceptable_arguments[key]
                             if compare_value(predict, acc_answer) is False:
                                 return False
-                    elif isinstance(acceptable_arguments[key], str):
-                        if compare_value(predict, acc_answer) is False:
-                            return False
+                            else:
+                                pass_arguments.append(key)
+            else:
+                pass_arguments.append(key)
+            if len(pass_arguments) == len(j_g_func_args.keys()):
+                return True
         return False
 
     def match(self, inp, out, debug=False):
@@ -236,7 +246,7 @@ class EvaluationHandler:
                 return eval_output
         return []
 
-    def evaluate(self, input_set, output_set, eval_file_path, eval_log_file_path, reset, sample, debug=False):
+    def evaluate(self, input_set, output_set, eval_file_path, eval_log_file_path, reset, sample, debug=False, only_exact=False):
         """
         Perform the evaluation based on input and output sets, and manage caching and logging of results.
 
@@ -286,9 +296,13 @@ class EvaluationHandler:
             inp, out = inp_out_tuple
             # 'else case' is dialog
             inp['type_of_output'] = 'call' if self.evaluation_type == 'singlecall' else inp['type_of_output']
+            # default
+            evaluate_response, input_prompt = {}, ''
             fetch_flag = True
             if self.evaluation_type == 'singlecall': # exact match 
                 fetch_flag, evaluate_response, input_prompt = self.match(inp, out)
+            if only_exact:
+                fetch_flag = False
             if fetch_flag:
                 evaluate_response, input_prompt = self.fetch(inp, out)
             # formatting

@@ -22,8 +22,8 @@ Determine if the [Submission] is a "pass" or "fail". You are given a [Ground Tru
 - Selected the appropriate function and accurately named it.
 - All keys in arguments match those presented in [Ground Truth].
 - Each argument value matches the type specified in [Available Functions].
-- Each value in arguments was created appropriately, as presented in [Ground Truth]. For string types, a [Submission] passes if its argument matches or refers to the same content or subject as [Ground Truth] or [Aacceptable arguments], even without an exact text match.
-- If 'Only ground truth is allowed.' appears under [Aacceptable arguments], it means that only when the argument value exactly matches [Ground Truth] will it be considered a pass.
+- Each value in arguments was created appropriately, as presented in [Ground Truth]. For string types, a [Submission] passes if its argument matches or refers to the same content or subject as [Ground Truth] or [Acceptable arguments], even without an exact text match.
+- If 'Only ground truth is allowed.' appears under [Acceptable arguments], it means that only when the argument value exactly matches [Ground Truth] will it be considered a pass.
 "fail" 
 - Selection error: Did not select a function or selected a different function than the one presented in [Ground Truth].
 - Function name error: Failed to accurately create the function name as presented in [Ground Truth] (different spelling).

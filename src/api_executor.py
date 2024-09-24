@@ -15,6 +15,8 @@ from src.gemini_utils import (
     call_gemini_model
 )
 
+import qwen_agent
+
 
 class AbstractModelAPIExecutor:
     """
@@ -331,6 +333,57 @@ class InhouseModelAPI(AbstractModelAPIExecutor):
         return response_output
 
 
+class Qwen2ModelAPI(AbstractModelAPIExecutor):
+    def __init__(self, model, api_key, base_url, model_path):
+        super().__init__(model, api_key)
+        print(f"base_url: {base_url}")
+        print(f"api_key: {api_key}")
+        if model_path is not None:
+            model = model_path
+        self.client = qwen_agent.llm.get_chat_model({
+            'model': model,
+            'model_server': base_url,
+            'api_key': api_key
+        })
+
+    def predict(self, api_request):
+        """
+        A method get model predictions for a request.        
+
+        Parameters:
+        api_request (dict): The API request data for making predictions.
+        """
+        messages = api_request['messages']
+        tools = [tool['function'] for tool in api_request['tools']] 
+        responses = []
+
+        for idx, msg in enumerate(messages):
+            print(msg)
+            if msg['role'] == 'tool':
+                messages[idx]['role'] = 'function'
+            if msg['role'] == 'assistant' and 'tool_calls' in msg:
+                messages[idx]['function_call'] = msg['tool_calls'][0]['function']
+        for responses in self.client.chat(
+                                  messages=messages,
+                                  functions=tools,
+                                  stream=True,
+        ):
+            continue
+        response =  responses[0]
+        tools = None
+        if 'function_call' in response:
+            tools = [{'id': "qwen2-functioncall-random-id", 'function':response['function_call'], 'type': "function", 'index': None}]
+        return {
+            "content": response['content'], 
+            "role": response['role'], 
+            "function_call": None, 
+            "tool_calls": tools,
+            "tool_call_id": None,
+            "name": None
+        }
+        return responses
+
+
 class GeminiModelAPI(AbstractModelAPIExecutor):
     def __init__(self, model, gcloud_project_id, gcloud_location):
         """
@@ -410,6 +463,8 @@ class APIExecutorFactory:
         """
         if model_name == 'inhouse':  # In-house developed model
             return InhouseModelAPI(model_name, api_key, base_url=base_url, model_path=model_path)
+        elif model_name.lower().startswith('qwen2'):  # Upstage developed model
+            return Qwen2ModelAPI(model_name, api_key=api_key, base_url=base_url, model_path=model_path)
         elif model_name.lower().startswith('solar'):  # Upstage developed model
             return SolarModelAPI(model_name, api_key=api_key, base_url=base_url)
         elif model_name.lower().startswith('gpt'):  # OpenAI developed model
