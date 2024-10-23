@@ -110,6 +110,9 @@ class DialogPayloadCreator(AbstractPayloadCreator):
 
     @type_check(validate_params)
     def create_payload(self, **kwargs):
+        test_set = utils.load_to_jsonl(kwargs['input_file_path'])
+        # update input file max_size
+        self.max_size = len(test_set)
         # kwargs keys = ['input_file_path', 'request_file_path', 'reset']
         # 1. check to cached file
         api_request_list = []
@@ -120,7 +123,6 @@ class DialogPayloadCreator(AbstractPayloadCreator):
         else:
             print("[[reset!! create requests jsonl file]]")
         # 2. create requests json list
-        test_set = utils.load_to_jsonl(kwargs['input_file_path'])
         for idx, test_input in enumerate(tqdm(test_set)):
             # test_input keys = ['dialog_num', 'tools_count', 'tools', 'turns']
             tools = test_input['tools']
@@ -148,6 +150,9 @@ class SingleCallPayloadCreator(AbstractPayloadCreator):
     @type_check(validate_params)
     def create_payload(self, **kwargs):
         # kwargs keys = ['input_file_path', 'request_file_path', 'reset', 'tools_type']
+        test_set = utils.load_to_jsonl(kwargs['input_file_path'])
+        # update input file max_size
+        self.max_size = len(test_set)
         # 1. check to cached file
         api_request_list = []
         if kwargs['reset'] is False:
@@ -157,7 +162,6 @@ class SingleCallPayloadCreator(AbstractPayloadCreator):
         else:
             print("[[reset!! create requests jsonl file]]")
         # 2. create requests json list
-        test_set = utils.load_to_jsonl(kwargs['input_file_path'])
         for idx, test_input in enumerate(tqdm(test_set)):
             # test_input keys = ['function_num', 'function_name', 'function_info', 'query',
             #                    'ground_truth', 'acceptable_arguments', 'tools']

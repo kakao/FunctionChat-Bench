@@ -168,20 +168,20 @@ class EvaluationHandler:
                         if isinstance(acceptable_arguments[key], list):
                             for acc_answer in acceptable_arguments[key]:
                                 if compare_value(predict, acc_answer) is False:
-                                    return False
+                                    continue
                                 else:
                                     pass_arguments.append(key)
                                     break
                         elif isinstance(acceptable_arguments[key], str):
                             acc_answer = acceptable_arguments[key]
                             if compare_value(predict, acc_answer) is False:
-                                return False
+                                continue
                             else:
                                 pass_arguments.append(key)
             else:
                 pass_arguments.append(key)
-            if len(pass_arguments) == len(j_g_func_args.keys()):
-                return True
+        if len(pass_arguments) == len(j_g_func_args.keys()):
+            return True
         return False
 
     def match(self, inp, out, debug=False):

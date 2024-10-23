@@ -17,6 +17,10 @@ def convert_eval_key(response):
             return 'pass'
         if 'fail' in key.lower():
             return 'fail'
+        if '패스' in key.lower():
+            return 'pass'
+        if '패쓰' in key.lower():
+            return 'pass'
         if '통과' in key:
             return 'pass'
         if '합격' in key:
