@@ -381,7 +381,6 @@ class Qwen2ModelAPI(AbstractModelAPIExecutor):
             "tool_call_id": None,
             "name": None
         }
-        return responses
 
 
 class GeminiModelAPI(AbstractModelAPIExecutor):
@@ -429,7 +428,6 @@ class GeminiModelAPI(AbstractModelAPIExecutor):
                 try_cnt += 1
                 print(e)
                 raise e
-                continue
             else:
                 break
         return response_output
