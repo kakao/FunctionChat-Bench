@@ -1,4 +1,4 @@
-# FunctionChat-Bench: Comphensive Evaluation of Language Model's Generative Capabilities in Korean Tool-use Dialogs
+# FunctionChat-Bench: Comprehensive Evaluation of Language Model's Generative Capabilities in Korean Tool-use Dialogs
 
 ## Introduction
 
