@@ -17,7 +17,7 @@ You are evaluating a response submitted for a specific function call task agains
 {response}
 ***
 [Criterion]: Accuracy in selecting the proper function, and generating the function name and argument values
-Determine if the [Submission] is a "pass" or "fail". You are given a [Ground Truth] for each [Query], so you can refer to this for evaluating the response.
+Determine if the [Submission] is a "pass" or "fail". In this [Submission], the assistant is required to make a tool call. In the [Query], there is not a lack of required parameter values needed to call the function. If the value of the "tool_calls" key is null, consider it a "fail" regardless of the details in the "content" key. You are given a [Ground Truth] for each [Query], so you can refer to this for evaluating the response.
 "pass"
 - Selected the appropriate function and accurately named it.
 - All keys in arguments match those presented in [Ground Truth].
