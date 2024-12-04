@@ -2,39 +2,42 @@ import os
 import json
 from tqdm import tqdm
 
+CUR_PATH = os.path.dirname(os.path.abspath(__file__))
+REPO_PATH = '/'.join(CUR_PATH.split('/')[:-1])
+
 from src import utils
 from src.api_executor import (
     OpenaiModelAzureAPI,
     OpenaiModelAPI
 )
 from src.formatter import (
+    CommonResponseFormatter,
     DialogResponseFormatter,
     SingleCallResponseFormatter,
 )
 from src.evaluation_registor import (
+    CommonEvaluationRegistor,
     DialogEvaluationRegistor,
     SingleCallEvaluationRegistor
 )
 
 RESPONSE_FORMATTER_OBJ = {
+    'common': CommonResponseFormatter,
     'singlecall': SingleCallResponseFormatter,
     'dialog': DialogResponseFormatter,
 }
 
 EVAlUATION_REGISTOR_OBJ = {
+    'common': CommonEvaluationRegistor,
     'singlecall': SingleCallEvaluationRegistor,
     'dialog': DialogEvaluationRegistor,
 }
 
-REPO_NAME = "FunctionChat-Bench"
-CUR_PATH = os.path.abspath(__file__)
-REPO_PATH = f"{CUR_PATH.split(REPO_NAME)[0]}{REPO_NAME}"
-
 
 class EvaluationHandler:
-    """ 
-    A class to handle different types of evaluations for models. 
-    It manages the setup, execution, and storage of evaluation results based on evaluation metrics and configurations. 
+    """
+    A class to handle different types of evaluations for models.
+    It manages the setup, execution, and storage of evaluation results based on evaluation metrics and configurations.
     """
     def __init__(self, evaluation_type):
         """
@@ -120,7 +123,7 @@ class EvaluationHandler:
         if acceptable_arguments:
             try:
                 acceptable_arguments = json.loads(acceptable_arguments)
-            except:
+            except Exception:
                 acceptable_arguments = json.loads(f'"{acceptable_arguments}"')
         if acceptable_arguments is None:
             return {}
@@ -149,7 +152,7 @@ class EvaluationHandler:
         except Exception as e:
             print(f"error : load to json {e}")
             return False
-        # argument 할루시네이션 
+        # argument 할루시네이션
         for key, val in j_p_func_args.items():
             if key not in j_g_func_args:
                 return False
@@ -157,8 +160,8 @@ class EvaluationHandler:
         for key, answer in j_g_func_args.items():
             try:
                 predict = j_p_func_args.get(key, None)
-            except Exception as e:
-                # predict 가 정상적이지 않음 
+            except Exception:
+                # predict 가 정상적이지 않음
                 return False
             if answer is not None and predict is None:
                 return False
@@ -189,6 +192,8 @@ class EvaluationHandler:
         fetch_flag = True
         ground_truth = inp.get('ground_truth', {})
         acceptable_arguments = self.get_acceptable_arguments(inp)
+        if 'tool_calls' in ground_truth:
+            ground_truth = ground_truth.get('tool_calls')[0]['function']
         g_func_name = ground_truth.get('name')
         g_func_args = ground_truth.get('arguments')
         p_func_name = ''
@@ -204,10 +209,10 @@ class EvaluationHandler:
                     is_pass = "pass"
                     fetch_flag = False
                 else:
-                    diff_case_msg += 'Function argument extraction failed.\n'
+                    diff_case_msg += f'g({g_func_args})|p({p_func_args})\nFunction argument extraction failed.\n'
             else:
-                diff_case_msg += 'Function selection failed.\n'
-        msg = f"exact-eval\n{diff_case_msg}\n\n{is_pass}\n{is_pass}\n" 
+                diff_case_msg += f'g({g_func_name})|p({p_func_name})\nFunction selection failed.\n'
+        msg = f"exact-eval\n{diff_case_msg}\n\n{is_pass}\n{is_pass}\n"
         input_prompt = ""
         # 임의로 포멧 맞춤
         evaluate_response = {
@@ -225,6 +230,7 @@ class EvaluationHandler:
             "exact": is_pass
         }
         return fetch_flag, evaluate_response, input_prompt
+
     def fetch(self, inp, out, debug=False):
         input_prompt = self.get_input_prompt(inp, out)
         messages = [{'role': 'user', 'content': input_prompt}]
@@ -299,12 +305,28 @@ class EvaluationHandler:
             # default
             evaluate_response, input_prompt = {}, ''
             fetch_flag = True
-            if self.evaluation_type == 'singlecall': # exact match 
+            if inp['type_of_output'] == 'call':  # exact match
                 fetch_flag, evaluate_response, input_prompt = self.match(inp, out)
             if only_exact:
                 fetch_flag = False
             if fetch_flag:
                 evaluate_response, input_prompt = self.fetch(inp, out)
+            else:
+                if len(evaluate_response) == 0:
+                    evaluate_response = {
+                        "id": "exact-match",
+                        "choices": [{
+                            "finish_reason": "stop",
+                            "index": 0,
+                            "message": {
+                                "content": 'skip evaluation',
+                                "role": "assistant"
+                            },
+                            "function_call": None,
+                            "tool_calls": None,
+                        }],
+                        "exact": 'fail'
+                    }
             # formatting
             response_formatter = RESPONSE_FORMATTER_OBJ[self.evaluation_type](
                 request_model=inp,

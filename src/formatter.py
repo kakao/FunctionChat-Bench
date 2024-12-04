@@ -45,30 +45,14 @@ class RequestFormatter(BaseModel):
     temperature: float
     tool_choice: str
     ground_truth: dict
-
-    def update(self, **kwargs):
-        for key, value in kwargs.items():
-            setattr(self, key, value)
-        return self
-
-    def to_dict(self):
-        return self.dict()
-
-
-class DialogRequestFormatter(RequestFormatter):
     acceptable_arguments: Optional[str] = None
-    type_of_output: str
+
     @root_validator(pre=True)
     def ensure_acceptable_arguments(cls, values):
         acceptable_arguments = values.get('acceptable_arguments', '')
         if isinstance(acceptable_arguments, dict):
             values['acceptable_arguments'] = json.dumps(acceptable_arguments, ensure_ascii=False)
         return values
-
-
-class SingleCallRequestFormatter(RequestFormatter):
-    acceptable_arguments: Optional[str] = None
-    tools_type: str
 
     @root_validator(pre=True)
     def clean_ground_truth(cls, values):
@@ -93,6 +77,29 @@ class SingleCallRequestFormatter(RequestFormatter):
         values['ground_truth'] = ground_truth
         return values
 
+    def update(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+        return self
+
+    def to_dict(self):
+        return self.dict()
+
+
+class CommonRequestFormatter(RequestFormatter):
+    category: str
+    type_of_output: str
+
+
+class DialogRequestFormatter(RequestFormatter):
+    type_of_output: str
+
+
+class SingleCallRequestFormatter(RequestFormatter):
+    messages: list
+    tools: list
+    tools_type: str
+
 
 class ResponseFormatter(BaseModel):
     # UserWarning: Field "model_response" has conflict with protected namespace "model_".
@@ -100,6 +107,9 @@ class ResponseFormatter(BaseModel):
     response_model: Dict
     evaluate_prompt: str
     evaluate_response: Dict
+    # report
+    tsv_keys: Optional[List[str]] = []
+    report_arguments: Optional[dict] = None
 
     def to_dict(self):
         convert_dict = self.dict()
@@ -110,14 +120,57 @@ class ResponseFormatter(BaseModel):
         return convert_dict
 
     def to_tsv(self):
-        raise NotImplementedError("Subclasses must implement this method.")
+        output_str = ''
+        for key in self.tsv_keys:
+            if key == 'input_messages':
+                key = 'messages'
+            output_str += f"{self.report_arguments[key]}\t"
+        return output_str
+
+    def get_tsv_title(self):
+        output_str = '#'
+        for key in self.tsv_keys:
+            output_str += f"{key}\t"
+        return output_str
+
+
+class CommonResponseFormatter(ResponseFormatter):
+    tsv_keys: Optional[List[str]] = ['serial_num', 'is_pass', 'category', 'type_of_output',
+                                     'ground_truth', 'acceptable_arguments',
+                                     'model_output', 'reasoning', 'input_messages']
+
+    @root_validator(pre=True)
+    def set_report_params(cls, values):
+        model_request = values.get('request_model', {})
+        model_response = values.get('response_model', {})
+        evaluate_response = values.get('evaluate_response', {})
+        serial_num = model_request['serial_num']
+        is_pass = convert_eval_key(evaluate_response)
+        category = model_request['category']
+        type_of_output = model_request['type_of_output']
+        ground_truth = json.dumps(model_request['ground_truth'], ensure_ascii=False)
+        acceptable_arguments = json.dumps(model_request['acceptable_arguments'], ensure_ascii=False)
+        model_output = json.dumps(model_response, ensure_ascii=False)
+        reasoning = json.dumps({'reasoning': evaluate_response['choices'][0]['message']['content']}, ensure_ascii=False)
+        messages = json.dumps(model_request['messages'], ensure_ascii=False)
+        values['report_arguments'] = {
+            'serial_num': serial_num,
+            'is_pass': is_pass,
+            'category': category,
+            'type_of_output': type_of_output,
+            'ground_truth': ground_truth,
+            'acceptable_arguments': acceptable_arguments,
+            'model_output': model_output,
+            'reasoning': reasoning,
+            'messages': messages
+        }
+        return values
 
 
 class SingleCallResponseFormatter(ResponseFormatter):
     tsv_keys: Optional[List[str]] = ['serial_num', 'is_pass', 'tools_type',
                                      'ground_truth', 'acceptable_arguments',
                                      'model_output', 'reasoning', 'query']
-    report_arguments: Optional[dict] = None
 
     @root_validator(pre=True)
     def set_report_params(cls, values):
@@ -144,24 +197,11 @@ class SingleCallResponseFormatter(ResponseFormatter):
         }
         return values
 
-    def to_tsv(self):
-        output_str = ''
-        for key in self.tsv_keys:
-            output_str += f"{self.report_arguments[key]}\t"
-        return output_str
-
-    def get_tsv_title(self):
-        output_str = '#'
-        for key in self.tsv_keys:
-            output_str += f"{key}\t"
-        return output_str
-
 
 class DialogResponseFormatter(ResponseFormatter):
     tsv_keys: Optional[List[str]] = ['serial_num', 'is_pass', 'type_of_output',
                                      'ground_truth', 'acceptable_arguments',
                                      'model_output', 'reasoning', 'query']
-    report_arguments: Optional[dict] = None
 
     @root_validator(pre=True)
     def set_report_params(cls, values):
@@ -187,15 +227,3 @@ class DialogResponseFormatter(ResponseFormatter):
             'query': messages
         }
         return values
-
-    def to_tsv(self):
-        output_str = ''
-        for key in self.tsv_keys:
-            output_str += f"{self.report_arguments[key]}\t"
-        return output_str
-
-    def get_tsv_title(self):
-        output_str = '#'
-        for key in self.tsv_keys:
-            output_str += f"{key}\t"
-        return output_str

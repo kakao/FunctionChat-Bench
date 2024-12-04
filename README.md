@@ -271,6 +271,29 @@ python3 evaluate.py singlecall \
 ```
 - A solar_model_name like `solar-1-mini-chat-240502` is needed. 
 
+## Additional option - **common**
+An option added to support a highly compatible data structure that allows for flexible content specification.
+
+```
+# openai evaluation
+python3 evaluate.py common \
+--input_path data/{common-evaluation-file}.jsonl \
+--temperature 0.1 \
+--model {model_name} \
+--api_key {api_key} 
+
+# inhouse evaluation
+python3 evaluate.py common \
+--input_path data/{common-evaluation-file}.jsonl \
+--temperature 0.1 \
+--model inhouse \
+--base_url {base_url} \
+--api_key {api_key} \
+--model_path {model_path}
+```
+- {common-evaluation-file}.jsonl : An evaluation dataset file in a format that follows the common option.
+
+
 # License
 
 This software is licensed under the Apache 2 license, quoted below.
@@ -281,13 +304,15 @@ Licensed under the Apache License, Version 2.0 (the "License"); you may not use 
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
 
-# Reference 
+# Citation 
 ```
-@misc {FunctionChat-Bench, 
-  title = {{FunctionChat-Bench: Comprehensive Evaluation of Language Models' Generative Capabilities in Korean Tool-use Dialogs}}
-  author = {Shinbok Lee, Gaeun Seo, Daniel Lee, Byeongil Ko, Sunghee Jung, Myeongcheol Shin}
-  url = {https://github.com/kakao/FunctionChat-Bench},
-  month = {9},
-  year = {2024}, 
+@misc{lee2024functionchatbenchcomprehensiveevaluationlanguage,
+      title={FunctionChat-Bench: Comprehensive Evaluation of Language Models' Generative Capabilities in Korean Tool-use Dialogs}, 
+      author={Shinbok Lee and Gaeun Seo and Daniel Lee and Byeongil Ko and Sunghee Jung and Myeongcheol Shin},
+      year={2024},
+      eprint={2411.14054},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2411.14054}, 
 }
 ```

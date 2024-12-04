@@ -21,9 +21,7 @@ from src.response_handler import ResponseHandler
 from src.evaluation_handler import EvaluationHandler
 
 
-REPO_NAME = "FunctionChat-Bench"
-CUR_PATH = os.path.abspath(__file__)
-REPO_PATH = f"{CUR_PATH.split(REPO_NAME)[0]}{REPO_NAME}"
+REPO_PATH = os.path.dirname(os.path.abspath(__file__))
 
 
 # program options
@@ -38,7 +36,6 @@ def cli(ctx, q):
 def default_eval_options(f):
     f = click.option('--model', prompt='model name', help='gpt-3.5-turbo, gpt-4 ..etc')(f)
     f = click.option('--input_path', prompt='input file path', help='golden set file name (*.jsonl)')(f)
-    f = click.option('--system_prompt_path', prompt='system_prompt_path', help='system prompt file path')(f)
     # test option
     f = click.option('--reset', prompt='recreate request file', help='reset request file', cls=DefaultResetPromptOptions)(f)
     f = click.option('--sample', prompt='Run only 1 case.', help='run sample', cls=DefaultSamplePromptOptions)(f)
@@ -52,23 +49,30 @@ def default_eval_options(f):
     # gemini
     f = click.option('--gcloud_project_id', prompt='gemini project id', help='google pid', cls=DefaultGPidPromptOptions)(f)
     f = click.option('--gcloud_location', prompt='gemini location', help='google cloud location', cls=DefaultGLocPromptOptions)(f)
+    f = click.option('--only_exact', prompt='evaluate exact match', help='only exact match(True, False)', cls=DefaultDebugPromptOptions)(f)
+    return f
+
+
+def dialog_eval_options(f):
+    f = click.option('--system_prompt_path', prompt='system_prompt_path', help='system prompt file path')(f)
     return f
 
 
 def singlecall_eval_options(f):
+    f = click.option('--system_prompt_path', prompt='system_prompt_path', help='system prompt file path')(f)
     f = click.option('--tools_type', prompt='tools type', help='tools_type = {exact, 4_random, 4_close, 8_random, 8_close}')(f)
-    f = click.option('--only_exact', prompt='evaluate exact match', help='only exact match(True, False)', cls=DefaultDebugPromptOptions)(f)
     return f
 
 
 # program command
 @cli.command()
 @default_eval_options
+@dialog_eval_options
 def dialog(model,
            input_path, system_prompt_path,
            temperature, api_key, base_url, model_path,
            reset, sample, debug,
-           gcloud_project_id, gcloud_location):
+           gcloud_project_id, gcloud_location, only_exact):
     eval_type = inspect.stack()[0][3]
     TEST_PREFIX = f'FunctionChat-{eval_type.capitalize()}'
 
@@ -122,6 +126,43 @@ def singlecall(model,
     ).create_payload(
         input_file_path=input_path, request_file_path=request_file_path,
         reset=reset, tools_type=tools_type
+    )
+    api_response_list = ResponseHandler(
+        model, api_key, base_url, model_path,
+        gcloud_project_id, gcloud_location
+    ).fetch_and_save(
+        api_request_list, predict_file_path, reset, sample, debug
+    )
+    EvaluationHandler(eval_type).evaluate(
+        api_request_list, api_response_list,
+        eval_file_path, eval_log_file_path,
+        reset, sample, debug, only_exact
+    )
+
+
+@cli.command()
+@default_eval_options
+def common(model, input_path,
+           temperature, api_key, base_url, model_path,
+           reset, sample, debug, only_exact,
+           gcloud_project_id, gcloud_location):
+
+    eval_type = inspect.stack()[0][3]
+    TEST_PREFIX = os.path.splitext(os.path.basename(input_path))[0]
+
+    print(f"[[{model} {TEST_PREFIX} evaluate start]]")
+    utils.create_directory(f'{REPO_PATH}/output/')
+
+    request_file_path = f'{REPO_PATH}/output/{TEST_PREFIX}.input.jsonl'
+    predict_file_path = f'{REPO_PATH}/output/{TEST_PREFIX}.{model}.output.jsonl'
+    eval_file_path = f'{REPO_PATH}/output/{TEST_PREFIX}.{model}.eval.jsonl'
+    eval_log_file_path = f'{REPO_PATH}/output/{TEST_PREFIX}.{model}.eval_report.tsv'
+
+    api_request_list = PayloadCreatorFactory.get_payload_creator(
+        eval_type, temperature
+    ).create_payload(
+        input_file_path=input_path, request_file_path=request_file_path,
+        reset=reset
     )
     api_response_list = ResponseHandler(
         model, api_key, base_url, model_path,

@@ -8,6 +8,7 @@ def validate_params(required_keys):
         def wrapper(*args, **kwargs):
             missing_keys = [key for key in required_keys if key not in kwargs or kwargs[key] is None]
             if missing_keys:
+                print(kwargs)
                 raise ValueError(f"Missing required parameters: {', '.join(missing_keys)}")
             return func(*args, **kwargs)
         return wrapper
@@ -70,6 +71,68 @@ class AbstractEvaluationRegistor:
             NotImplementedError: If not implemented by a subclass.
         """
         raise NotImplementedError("Subclasses must implement this method.")
+
+
+class CommonEvaluationRegistor(AbstractEvaluationRegistor):
+    def __init__(self):
+        super().__init__()
+        self.types_of_output = ['call', 'completion', 'slot', 'relevance']
+        self.eval_dic_per_category = {}
+
+    @validate_params(['type_of_output', 'is_pass', 'serial_num'])
+    def add_eval_dic(self, **kwargs):
+        type_of_output = kwargs.get('type_of_output')
+        is_pass = kwargs.get('is_pass')
+        serial_num = kwargs.get('serial_num')
+        if type_of_output not in self.eval_dic:
+            self.eval_dic[type_of_output] = {}
+        if is_pass not in self.eval_dic[type_of_output]:
+            self.eval_dic[type_of_output][is_pass] = []
+        self.eval_dic[type_of_output][is_pass].append(serial_num)
+
+    @validate_params(['category', 'is_pass', 'serial_num'])
+    def add_eval_dic_per_category(self, **kwargs):
+        category = kwargs.get('category')
+        is_pass = kwargs.get('is_pass')
+        serial_num = kwargs.get('serial_num')
+        if category not in self.eval_dic_per_category:
+            self.eval_dic_per_category[category] = {}
+        if is_pass not in self.eval_dic_per_category[category]:
+            self.eval_dic_per_category[category][is_pass] = []
+        self.eval_dic_per_category[category][is_pass].append(serial_num)
+
+    def display(self):
+        for data in self.eval_output:
+            is_pass = formatter.convert_eval_key(data['evaluate_response'])
+            self.add_eval_dic(type_of_output=data['model_request']['type_of_output'],
+                              is_pass=is_pass, serial_num=data['model_request']['serial_num'])
+            self.add_eval_dic_per_category(category=data['model_request']['category'],
+                                           is_pass=is_pass, serial_num=data['model_request']['serial_num'])
+        print("Pass Count")
+        total_cnt = 0
+        tot_pass_cnt_per_cate = 0
+        categories = sorted(set(self.eval_dic_per_category.keys()))
+        for category in categories:
+            if category in self.eval_dic_per_category:
+                pass_cnt = len(self.eval_dic_per_category[category].get('pass', []))
+                tot_pass_cnt_per_cate += pass_cnt
+                case_tot_cnt_per_cate = pass_cnt + len(self.eval_dic_per_category[category].get('fail', []))
+                total_cnt += case_tot_cnt_per_cate
+                print(f"  {category} : {pass_cnt}/{case_tot_cnt_per_cate}")
+        print(f"  total : {tot_pass_cnt_per_cate}/{total_cnt}")
+        total_cnt = 0
+        tot_pass_cnt_per_cate = 0
+        print("Pass Rate")
+        for category in categories:
+            if category in self.eval_dic_per_category:
+                pass_cnt = len(self.eval_dic_per_category[category].get('pass', []))
+                fail_cnt = len(self.eval_dic_per_category[category].get('fail', []))
+                tot_pass_cnt_per_cate += pass_cnt
+                case_tot_cnt_per_cate = pass_cnt + fail_cnt
+                total_cnt += case_tot_cnt_per_cate
+                print(f"  {category} : {pass_cnt/case_tot_cnt_per_cate:.2f}")
+        print(f"  total : {tot_pass_cnt_per_cate/total_cnt:.2f}")
+        total_pass_count = 0
 
 
 class DialogEvaluationRegistor(AbstractEvaluationRegistor):

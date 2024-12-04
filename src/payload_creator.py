@@ -5,6 +5,7 @@ from typing import Any, Callable
 from tqdm import tqdm
 from src import utils
 from src.formatter import (
+    CommonRequestFormatter,
     DialogRequestFormatter,
     SingleCallRequestFormatter,
 )
@@ -55,7 +56,9 @@ class AbstractPayloadCreator:
         """
         self.temperature = temperature
         self.max_size = max_size
-        self.system_prompt = self.get_prompt_text(system_prompt_file_path)
+        self.system_prompt = None
+        if system_prompt_file_path:
+            self.system_prompt = self.get_prompt_text(system_prompt_file_path)
 
     def create_payload(self, **kwargs):
         """
@@ -102,6 +105,49 @@ class AbstractPayloadCreator:
         else:
             print("[[create requests jsonl list]]")
         return []
+
+
+class CommonPayloadCreator(AbstractPayloadCreator):
+    def __init__(self, temperature):
+        super().__init__(temperature, 0, None)
+
+    @type_check(validate_params)
+    def create_payload(self, **kwargs):
+        test_set = utils.load_to_jsonl(kwargs['input_file_path'])
+        self.max_size = len(test_set)
+        api_request_list = []
+        if kwargs['reset'] is False:
+            api_request_list = self.load_cached_payload(kwargs['request_file_path'])
+            if len(api_request_list) == self.max_size:
+                return api_request_list
+        else:
+            print("[[reset!! create requests jsonl file]]")
+        # 2. create requests json list
+        for idx, test_input in enumerate(tqdm(test_set)):
+            # test_input keys = ['serial_num', 'category', 'input_message', 'input_tools', 'type_of_output', 'ground_truth', 'acceptable_arguments']
+            serial_num = test_input['serial_num']
+            category = test_input['category']
+            tools = test_input['input_tools']
+            ground_truth = test_input['ground_truth']
+            acceptable_arguments = test_input['acceptable_arguments']
+            type_of_output = test_input['type_of_output']
+            arguments = {}
+            arguments['serial_num'] = serial_num
+            arguments['category'] = category
+            arguments['tools'] = tools
+            arguments['ground_truth'] = ground_truth
+            arguments['type_of_output'] = type_of_output
+            arguments['acceptable_arguments'] = acceptable_arguments
+            arguments['messages'] = test_input['input_messages']
+            arguments['temperature'] = self.temperature
+            arguments['tool_choice'] = 'auto'
+            api_request_list.append(CommonRequestFormatter(**arguments).to_dict())
+        # 3. write requests jsonl file
+        fi = open(kwargs['request_file_path'], 'w')
+        for api_request in api_request_list:
+            fi.write(f"{json.dumps(api_request, ensure_ascii=False)}\n")
+        fi.close()
+        return api_request_list
 
 
 class DialogPayloadCreator(AbstractPayloadCreator):
@@ -199,14 +245,14 @@ class PayloadCreatorFactory:
     A factory class for creating specific payload creators based on the type of evaluation.
     """
     @staticmethod
-    def get_payload_creator(evaluation_type, temperature, system_prompt_file_path):
+    def get_payload_creator(evaluation_type, temperature, system_prompt_file_path=None):
         """
         Returns an instance of a payload creator based on the specified evaluation type.
 
         Parameters:
             evaluation_type (str): The type of evaluation, which determines the type of payload creator.
             temperature (float): The variability setting for the model's responses used in the payload.
-            system_prompt_file_path (str): Path to the file containing the system prompt for payloads.
+            system_prompt_file_path (str, optional): Path to the file containing the system prompt for payloads.
 
         Returns:
             A payload creator instance appropriate for the given evaluation type.
@@ -214,7 +260,9 @@ class PayloadCreatorFactory:
         Raises:
             ValueError: If the specified evaluation type is not supported.
         """
-        if evaluation_type == 'dialog':
+        if evaluation_type == 'common':
+            return CommonPayloadCreator(temperature)
+        elif evaluation_type == 'dialog':
             return DialogPayloadCreator(temperature, system_prompt_file_path)
         elif evaluation_type == 'singlecall':
             return SingleCallPayloadCreator(temperature, system_prompt_file_path)
