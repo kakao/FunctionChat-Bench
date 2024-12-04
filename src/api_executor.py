@@ -427,7 +427,8 @@ class GeminiModelAPI(AbstractModelAPIExecutor):
                 print(f".. retry api call .. {try_cnt}")
                 try_cnt += 1
                 print(e)
-                raise e
+                print(json.dumps(api_request['messages'], ensure_ascii=False))
+                continue
             else:
                 break
         return response_output
