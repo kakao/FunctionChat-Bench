@@ -65,7 +65,7 @@ class OpenaiModelAzureAPI(AbstractModelAPIExecutor):
 
     def predict(self, api_request):
         """
-        A method get model predictions for a request.        
+        A method get model predictions for a request.
 
         Parameters:
         api_request (dict): The API request data for making predictions.
@@ -111,7 +111,7 @@ class OpenaiModelAPI(AbstractModelAPIExecutor):
 
     def predict_tool(self, api_request):
         """
-        A method get model predictions for a request.        
+        A method get model predictions for a request.
 
         Parameters:
         api_request (dict): The API request data for making predictions.
@@ -144,7 +144,7 @@ class OpenaiModelAPI(AbstractModelAPIExecutor):
 
     def predict_eval(self, api_request):
         """
-        A method get model predictions for a requests for evaluation purposes. 
+        A method get model predictions for a requests for evaluation purposes.
 
         Parameters:
         api_request (dict): The API request data for making predictions.
@@ -190,7 +190,7 @@ class SolarModelAPI(AbstractModelAPIExecutor):
 
     def predict(self, api_request):
         """
-        A method get model predictions for a request.        
+        A method get model predictions for a request.
 
         Parameters:
         api_request (dict): The API request data for making predictions.
@@ -243,7 +243,7 @@ class MistralModelAPI(AbstractModelAPIExecutor):
 
     def predict(self, api_request):
         """
-        A method get model predictions for a request.        
+        A method get model predictions for a request.
 
         Parameters:
         api_request (dict): The API request data for making predictions.
@@ -305,7 +305,7 @@ class InhouseModelAPI(AbstractModelAPIExecutor):
 
     def predict(self, api_request):
         """
-        A method get model predictions for a request.        
+        A method get model predictions for a request.
 
         Parameters:
         api_request (dict): The API request data for making predictions.
@@ -348,13 +348,13 @@ class Qwen2ModelAPI(AbstractModelAPIExecutor):
 
     def predict(self, api_request):
         """
-        A method get model predictions for a request.        
+        A method get model predictions for a request.
 
         Parameters:
         api_request (dict): The API request data for making predictions.
         """
         messages = api_request['messages']
-        tools = [tool['function'] for tool in api_request['tools']] 
+        tools = [tool['function'] for tool in api_request['tools']]
         responses = []
 
         for idx, msg in enumerate(messages):
@@ -363,20 +363,16 @@ class Qwen2ModelAPI(AbstractModelAPIExecutor):
                 messages[idx]['role'] = 'function'
             if msg['role'] == 'assistant' and 'tool_calls' in msg:
                 messages[idx]['function_call'] = msg['tool_calls'][0]['function']
-        for responses in self.client.chat(
-                                  messages=messages,
-                                  functions=tools,
-                                  stream=True,
-        ):
+        for responses in self.client.chat(messages=messages, functions=tools, stream=True):
             continue
-        response =  responses[0]
+        response = responses[0]
         tools = None
         if 'function_call' in response:
-            tools = [{'id': "qwen2-functioncall-random-id", 'function':response['function_call'], 'type': "function", 'index': None}]
+            tools = [{'id': "qwen2-functioncall-random-id", 'function': response['function_call'], 'type': "function", 'index': None}]
         return {
-            "content": response['content'], 
-            "role": response['role'], 
-            "function_call": None, 
+            "content": response['content'],
+            "role": response['role'],
+            "function_call": None,
             "tool_calls": tools,
             "tool_call_id": None,
             "name": None
@@ -398,7 +394,7 @@ class GeminiModelAPI(AbstractModelAPIExecutor):
 
     def predict(self, api_request):
         """
-        A method get model predictions for a request.        
+        A method get model predictions for a request.
 
         Parameters:
         api_request (dict): The API request data for making predictions.
@@ -436,7 +432,7 @@ class GeminiModelAPI(AbstractModelAPIExecutor):
 
 class APIExecutorFactory:
     """
-    A factory class to create model API executor instances based on the model name. 
+    A factory class to create model API executor instances based on the model name.
     """
 
     @staticmethod
