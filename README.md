@@ -271,7 +271,7 @@ python3 evaluate.py singlecall \
 ```
 - A solar_model_name like `solar-1-mini-chat-240502` is needed. 
 
-### Evaluation for qwen2(or qwen2.5) api
+### Evaluation for qwen2(not qwen2.5) api
 
 ```
 # run dialog evaluation
@@ -293,11 +293,12 @@ python3 evaluate.py singlecall \
 --base_url {base_url} \
 --api_key {api_key} 
 ```
-- A qwen2_model_name like `Qwen/Qwen2.5-14B-Instruct` is needed.
-- If you want to use local qwen2(or qwen2.5) api, add the `--model_path` parameter like below.
+- A qwen2_model_name like `Qwen/Qwen2-7B-Instruct` is needed.
+- If you want to use local qwen2(not qwen2.5) api, add the `--model_path` parameter like below.
   ```
   --model_path {model_path}
   ```
+- If you wanna evaluate qwen2.5 model, you should use local option (not using `qwen-agent`)
 
 ## Additional option - **common**
 An option added to support a highly compatible data structure that allows for flexible content specification.
