@@ -149,7 +149,7 @@ The evaluation API is configured in `config/openai.cfg`.
 
 ## Evaluation
 
-Evaluation for openai api
+### Evaluation for openai api
 
 ```bash
 # run dialog evaluation
@@ -171,7 +171,7 @@ python3 evaluate.py singlecall \
 ```
 - A model_name like `gpt-3.5-turbo-0125` is needed. 
 
-Evaluation for local api
+### Evaluation for local api
 
 ```bash
 # run dialog evaluation
@@ -199,7 +199,7 @@ python3 evaluate.py singlecall \
 - If the `model_path` is required in the request header, add the `--model_path` parameter.
 - Follows OpenAI's API specifications.
 
-Evaluation for gemini api
+### Evaluation for gemini api
 
 ```bash
 # run dialog evaluation
@@ -225,7 +225,7 @@ python3 evaluate.py singlecall \
 - For installing the gcloud CLI to use the Gemini API, you can set it up by following the link below.
   https://cloud.google.com/sdk/docs/install
 
-Evaluation for mistral api
+### Evaluation for mistral api
 
 ```
 # run dialog evaluation
@@ -247,7 +247,7 @@ python3 evaluate.py singlecall \
 ```
 - A mistral_model_name like `mistral-small-latest` is needed.
 
-Evaluation for solar api
+### Evaluation for solar api
 
 ```
 # run dialog evaluation
@@ -270,6 +270,34 @@ python3 evaluate.py singlecall \
 --api_key {api_key} 
 ```
 - A solar_model_name like `solar-1-mini-chat-240502` is needed. 
+
+### Evaluation for qwen2(or qwen2.5) api
+
+```
+# run dialog evaluation
+python3 evaluate.py dialog \
+--input_path data/FunctionChat-Dialog.jsonl \
+--system_prompt_path data/system_prompt.txt \
+--temperature 0.1 \
+--model {qwen2_model_name} \
+--base_url {base_url} \
+--api_key {api_key} 
+
+# run singlecall evaluation
+python3 evaluate.py singlecall \
+--input_path data/FunctionChat-Singlecall.jsonl \
+--tools_type all \
+--system_prompt_path data/system_prompt.txt \
+--temperature 0.1 \
+--model {qwen2_model_name} \
+--base_url {base_url} \
+--api_key {api_key} 
+```
+- A qwen2_model_name like `Qwen/Qwen2.5-14B-Instruct` is needed.
+- If you want to use local qwen2(or qwen2.5) api, add the `--model_path` parameter like below.
+  ```
+  --model_path {model_path}
+  ```
 
 ## Additional option - **common**
 An option added to support a highly compatible data structure that allows for flexible content specification.
