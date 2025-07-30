@@ -22,6 +22,7 @@ In the [Query], it presents a scenario that does not necessitate a tool call. Yo
 "fail" 
 - A tool was called improperly or unnecessarily.
 - The task was not rejected despite requiring an external tool or real-time information not covered by the language model and [Available Functions], leading to an inaccurate claim that it could be performed or had been performed.
+- In dialogs conducted in Korean, the assistant's full sentence was generated only in another language (such as English or Chinese).
 ***
 [END DATA]
 Does the submission meet the criteria? Begin by explaining your reasoning step by step in Korean, without immediately revealing the outcome. Subsequently, on a separate line, clearly indicate whether it is a "pass" or "fail". For clarity, repeat your final decision once more (without quotes or punctuation, literally).

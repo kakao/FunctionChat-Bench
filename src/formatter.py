@@ -2,6 +2,9 @@ import json
 from typing import Optional, List, Dict
 from pydantic import BaseModel, root_validator
 
+PASS = 'pass'
+FAIL = 'fail'
+
 
 def convert_eval_key(response):
     """
@@ -13,27 +16,29 @@ def convert_eval_key(response):
           str: pass or fail
     """
     def contain_is_pass(key):
-        if 'pass' in key.lower():
-            return 'pass'
-        if 'fail' in key.lower():
-            return 'fail'
+        if PASS in key.lower():
+            return PASS
+        if FAIL in key.lower():
+            return FAIL
         if '패스' in key.lower():
-            return 'pass'
+            return PASS
         if '패쓰' in key.lower():
-            return 'pass'
+            return PASS
         if '통과' in key:
-            return 'pass'
+            return PASS
         if '합격' in key:
-            return 'pass'
+            return PASS
+        if '성공' in key:
+            return PASS
         return key
     key = ''.join(response['choices'][0]['message']['content'].strip().split('\n')[-2:])
     key = contain_is_pass(key)
-    if key in ['pass', 'fail']:
+    if key in [PASS, FAIL]:
         return key
     if '입니다.' == key:
         key = ''.join(response['choices'][0]['message']['content'].strip().split('\n')[-4:])
         key = contain_is_pass(key)
-        if key in ['pass', 'fail']:
+        if key in [PASS, FAIL]:
             return key
     return key
 
@@ -133,11 +138,19 @@ class ResponseFormatter(BaseModel):
             output_str += f"{key}\t"
         return output_str
 
+    def set_evaluate_response(self, evaluate_response):
+        self.evaluate_response = evaluate_response
+        is_pass = convert_eval_key(evaluate_response)
+        reasoning = json.dumps({'reasoning': evaluate_response['choices'][0]['message']['content']}, ensure_ascii=False)
+        model_output = json.dumps(self.response_model, ensure_ascii=False)
+        self.report_arguments['is_pass'] = is_pass
+        self.report_arguments['reasoning'] = reasoning
+        return self
 
 class CommonResponseFormatter(ResponseFormatter):
     tsv_keys: Optional[List[str]] = ['serial_num', 'is_pass', 'category', 'type_of_output',
                                      'ground_truth', 'acceptable_arguments',
-                                     'model_output', 'reasoning', 'input_messages']
+                                     'model_output', 'reasoning', 'input_messages', 'tools']
 
     @root_validator(pre=True)
     def set_report_params(cls, values):
@@ -153,6 +166,7 @@ class CommonResponseFormatter(ResponseFormatter):
         model_output = json.dumps(model_response, ensure_ascii=False)
         reasoning = json.dumps({'reasoning': evaluate_response['choices'][0]['message']['content']}, ensure_ascii=False)
         messages = json.dumps(model_request['messages'], ensure_ascii=False)
+        tools = json.dumps(model_request['tools'], ensure_ascii=False)
         values['report_arguments'] = {
             'serial_num': serial_num,
             'is_pass': is_pass,
@@ -162,7 +176,8 @@ class CommonResponseFormatter(ResponseFormatter):
             'acceptable_arguments': acceptable_arguments,
             'model_output': model_output,
             'reasoning': reasoning,
-            'messages': messages
+            'messages': messages,
+            'tools': tools
         }
         return values
 
@@ -170,7 +185,7 @@ class CommonResponseFormatter(ResponseFormatter):
 class SingleCallResponseFormatter(ResponseFormatter):
     tsv_keys: Optional[List[str]] = ['serial_num', 'is_pass', 'tools_type',
                                      'ground_truth', 'acceptable_arguments',
-                                     'model_output', 'reasoning', 'query']
+                                     'model_output', 'reasoning', 'query', 'tools']
 
     @root_validator(pre=True)
     def set_report_params(cls, values):
@@ -185,6 +200,7 @@ class SingleCallResponseFormatter(ResponseFormatter):
         model_output = json.dumps(model_response, ensure_ascii=False)
         reasoning = json.dumps({'reasoning': evaluate_response['choices'][0]['message']['content']}, ensure_ascii=False)
         messages = json.dumps(model_request['messages'], ensure_ascii=False)
+        tools = json.dumps(model_request['tools'], ensure_ascii=False)
         values['report_arguments'] = {
             'serial_num': serial_num,
             'is_pass': is_pass,
@@ -193,7 +209,8 @@ class SingleCallResponseFormatter(ResponseFormatter):
             'acceptable_arguments': acceptable_arguments,
             'model_output': model_output,
             'reasoning': reasoning,
-            'query': messages
+            'query': messages,
+            'tools': tools
         }
         return values
 
@@ -201,7 +218,7 @@ class SingleCallResponseFormatter(ResponseFormatter):
 class DialogResponseFormatter(ResponseFormatter):
     tsv_keys: Optional[List[str]] = ['serial_num', 'is_pass', 'type_of_output',
                                      'ground_truth', 'acceptable_arguments',
-                                     'model_output', 'reasoning', 'query']
+                                     'model_output', 'reasoning', 'query', 'tools']
 
     @root_validator(pre=True)
     def set_report_params(cls, values):
@@ -216,6 +233,7 @@ class DialogResponseFormatter(ResponseFormatter):
         model_output = json.dumps(model_response, ensure_ascii=False)
         reasoning = json.dumps({'reasoning': evaluate_response['choices'][0]['message']['content']}, ensure_ascii=False)
         messages = json.dumps(model_request['messages'], ensure_ascii=False)
+        tools = json.dumps(model_request['tools'], ensure_ascii=False)
         values['report_arguments'] = {
             'serial_num': serial_num,
             'is_pass': is_pass,
@@ -224,6 +242,8 @@ class DialogResponseFormatter(ResponseFormatter):
             'acceptable_arguments': acceptable_arguments,
             'model_output': model_output,
             'reasoning': reasoning,
-            'query': messages
+            'query': messages,
+            'tools': tools
         }
         return values
+    

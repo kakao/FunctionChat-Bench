@@ -1,16 +1,17 @@
 import time
 import openai
+import traceback
 from functools import wraps
 
 
-def retry_on_limit(func, retries=5, wait=120):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        for i in range(retries):
-            try:
-                return func(*args, **kwargs)
-            except openai.RateLimitError as error:
-                print(str(error))
-                time.sleep(wait)
-        raise openai.RateLimitError
-    return wrapper
+def get_openai_batch_format(custom_id, openai_model, messages, max_tokens=8192):
+    return {
+        "custom_id": custom_id,
+        "method": "POST",
+        "url": "/v1/chat/completions",
+        "body": {
+            "model": openai_model,
+            "messages": messages,
+            "max_tokens": max_tokens,
+        }
+    }

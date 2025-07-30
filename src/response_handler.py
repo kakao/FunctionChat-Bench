@@ -1,5 +1,9 @@
 import json
+import time
+import concurrent
 from tqdm import tqdm
+import threading
+
 from src import utils
 from src.api_executor import APIExecutorFactory
 
@@ -8,7 +12,7 @@ class ResponseHandler:
     """
     A class responsible for managing API responses, including loading cached responses.
     """
-    def __init__(self, model, api_key, base_url, model_path, gcloud_project_id, gcloud_location):
+    def __init__(self, model, api_key, base_url, served_model_name, gcloud_project_id, gcloud_location):
         """
         Initializes the ResponseHandler with a specific API executor based on the model configuration.
 
@@ -21,7 +25,7 @@ class ResponseHandler:
             gcloud_location (str): Location of the Google Cloud project (if applicable).
         """
         self.executor = APIExecutorFactory().get_model_api(model_name=model, api_key=api_key,
-                                                           base_url=base_url, model_path=model_path,
+                                                           base_url=base_url, served_model_name=served_model_name,
                                                            gcloud_project_id=gcloud_project_id,
                                                            gcloud_location=gcloud_location)
 
@@ -46,9 +50,9 @@ class ResponseHandler:
                 return outputs
         return []
 
-    def fetch_and_save(self, api_request_list, predict_file_path, reset, sample, debug):
+    def fetch_and_save(self, api_request_list, predict_file_path, reset, sample, debug, max_threads=2):
         """
-        Fetches responses from the API and saves them. If responses are partially cached, it continues from where it left off.
+        Fetches responses from the API using multithreading and saves them. If responses are partially cached, it continues from where it left off.
 
         Parameters:
             api_request_list (list): List of API requests to process.
@@ -56,28 +60,63 @@ class ResponseHandler:
             reset (bool): If True, it overwrite existing cached responses; if False, append to them.
             sample (bool): If True, it executes only a single input to fetch the response. (e.g., for quick testing).
             debug (bool): If True, it print detailed debug information.
+            max_threads (int): Maximum number of threads to use for API requests.
 
         Returns:
             list: A list of all responses fetched and saved.
         """
         outputs = []
-        # 1. check continuos
-        if reset is False:
+        try:
+            models = self.executor.models()
+            print(models)
+        except Exception as e:
+            print(f"Error fetching models: {e}")
+            raise e
+
+        # 1. check existing responses
+        if not reset:
             outputs = self.load_cached_response(predict_file_path, len(api_request_list))
             if len(outputs) == len(api_request_list):
                 return outputs
         write_option = 'a' if reset is False else 'w'
-        start_index = len(outputs)
-        # 2. fetch
-        print(f" ** start index : {start_index} ..(reset is {reset})")
-        fp = open(predict_file_path, write_option)
-        for idx, api_request in enumerate(tqdm(api_request_list[start_index:])):
-            if sample is True and idx == 1:
-                break
-            response_output = self.executor.predict(api_request)
-            outputs.append(response_output)
-            # 3. save
-            fp.write(f'{json.dumps(response_output, ensure_ascii=False)}\n')
-        fp.close()
+        outputs = [None] * len(api_request_list) 
+
+        start_time = time.time()
+        # 2. fetch responses using multithreading
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_threads) as executor:
+            futures = {
+                executor.submit(self.executor.predict, api_request): idx
+                for idx, api_request in enumerate(api_request_list)
+            }
+
+            # 3. process completed futures
+            for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures)):
+            #for future in concurrent.futures.as_completed(futures):
+                idx = futures[future] # 병렬처리는 순서가 보장이 안되어서 인덱스 매칭 필요
+                response_output = None
+                try:
+                    # 3번 재시도
+                    for _ in range(3):
+                        try:
+                            response_output = future.result(timeout=30)
+                            break
+                        except Exception as e:
+                            print(f"Error processing request at index {idx}: {e}")
+                            time.sleep(1)
+                    
+                    if response_output is None:
+                        response_output = {"role": "assistant", "content": "", "tool_calls": [], "error": f"api response is None"}
+                    outputs[idx] = response_output
+                except Exception as e:
+                    print(f"Error processing request at index {idx}: {e}")
+                    response_output = {"role": "assistant", "content": "", "tool_calls": [], "error": str(e)}
+                    outputs[idx] = response_output
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        print(f"Total time execution: {elapsed_time:.2f} seconds")
+        # save response
+        with open(predict_file_path, write_option) as fp:
+            for response_output in outputs:
+                fp.write(f'{json.dumps(response_output, ensure_ascii=False)}\n')
         print(f"[[model response file : {predict_file_path}]]")
         return outputs

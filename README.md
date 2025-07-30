@@ -6,7 +6,7 @@ The FunctionChat-Bench is a benchmark dataset specifically designed to evaluate 
 
 This dataset is built on Korean dialogs data and is meticulously crafted to precisely assess various functionalities required in both single-turn and multi-turn situations.
 
-![FunctionChat-Bench-img](https://github.com/kakao/FunctionChat-Bench/blob/main/img/example-img.png)
+![FunctionChat-Bench-img](./img/example-img.png)
 
 ## Dataset Composition
 
@@ -105,7 +105,8 @@ The FunctionChat-Bench consists of the following datasets:
              
             assistant: 문자 전송 기능은 없습니다.
             ```
-            
+- **CallDecision** 
+
 
 ## Evaluation Method
 
@@ -132,6 +133,7 @@ The evaluation API is configured in `config/openai.cfg`.
   "max_tokens": 4096,
   "n": 3
 }
+
 ```
 ### openai azure config format 
 ```
@@ -168,6 +170,13 @@ python3 evaluate.py singlecall \
 --temperature 0.1 \
 --model {model_name} \
 --api_key {api_key} 
+
+# run calldecision evaluation
+python3 evaluate.py common \
+--input_path data/FunctionChat-CallDecision.jsonl \
+--temperature 0.1 \
+--model {model_name} \
+--api_key {api_key} 
 ```
 - A model_name like `gpt-3.5-turbo-0125` is needed. 
 
@@ -182,7 +191,7 @@ python3 evaluate.py dialog \
 --model inhouse \
 --base_url {base_url} \
 --api_key {api_key} \
---model_path {model_path}
+--served_model_name {model_name}
 
 # run singlecall evaluation
 python3 evaluate.py singlecall \
@@ -192,12 +201,56 @@ python3 evaluate.py singlecall \
 --temperature 0.1 \
 --model inhouse \
 --base_url {base_url} \
+--api_key {api_key} \
+--served_model_name {model_name}
+
+# run calldecision evaluation
+python3 evaluate.py common \
+--input_path data/FunctionChat-CallDecision.jsonl \
+--temperature 0.1 \
+--model inhouse \
+--base_url {base_url} \
 --api_key {api_key} 
---model_path {model_path} 
+--served_model_name {model_name}
 ```
 
 - If the `model_path` is required in the request header, add the `--model_path` parameter.
 - Follows OpenAI's API specifications.
+
+Evaluation for gemini, claude api(alphachat api)
+
+```bash
+base_url="http://alpha-gateway-dev.dev.onkakao.net/v1"
+model_name="gemini-2.5-pro" # or "claude-opus-4"
+api_key="sk-*****"
+
+# run dialog evaluation
+python3 evaluate.py dialog \
+--input_path data/FunctionChat-Dialog.jsonl \
+--system_prompt_path data/system_prompt.txt \
+--temperature 0.1 \
+--model ${model_name} \
+--api_key ${api_key} \
+--base_url ${base_url}
+
+# run singlecall evaluation
+python3 evaluate.py singlecall \
+--input_path data/FunctionChat-Singlecall.jsonl \
+--tools_type all \
+--system_prompt_path data/system_prompt.txt \
+--temperature 0.1 \
+--model ${model_name} \
+--api_key ${api_key} \
+--base_url ${base_url}
+
+# run calldecision evaluation
+python3 evaluate.py common \
+--input_path data/FunctionChat-CallDecision.jsonl \
+--temperature 0.1 \
+--model ${model_name} \
+--api_key ${api_key} \
+--base_url ${base_url}
+```
 
 Evaluation for gemini api
 
@@ -216,6 +269,14 @@ python3 evaluate.py singlecall \
 --input_path data/FunctionChat-Singlecall.jsonl \
 --tools_type all \
 --system_prompt_path data/system_prompt.txt \
+--temperature 0.1 \
+--model {gemini_model_name} \
+--gcloud_project_id {base_url} \
+--gcloud_location {api_key} 
+
+# run calldecision evaluation
+python3 evaluate.py common \
+--input_path data/FunctionChat-CallDecision.jsonl \
 --temperature 0.1 \
 --model {gemini_model_name} \
 --gcloud_project_id {base_url} \
@@ -244,6 +305,13 @@ python3 evaluate.py singlecall \
 --temperature 0.1 \
 --model {mistral_model_name} \
 --api_key {api_key} 
+
+# run calldecision evaluation
+python3 evaluate.py common \
+--input_path data/FunctionChat-CallDecision.jsonl \
+--temperature 0.1 \
+--model {mistral_model_name} \
+--api_key {api_key} 
 ```
 - A mistral_model_name like `mistral-small-latest` is needed.
 
@@ -268,6 +336,13 @@ python3 evaluate.py singlecall \
 --model {solar_model_name} \
 --base_url {base_url} \
 --api_key {api_key} 
+
+# run calldecision evaluation
+python3 evaluate.py common \
+--input_path data/FunctionChat-CallDecision.jsonl \
+--temperature 0.1 \
+--model {solar_model_name} \
+--api_key {api_key} 
 ```
 - A solar_model_name like `solar-1-mini-chat-240502` is needed. 
 
@@ -291,8 +366,28 @@ python3 evaluate.py common \
 --api_key {api_key} \
 --model_path {model_path}
 ```
+- It is an option developed for the expansion of the evaluation set.
 - {common-evaluation-file}.jsonl : An evaluation dataset file in a format that follows the common option.
+- Currently, the only evaluation set compatible with the common option is FunctionChat-CallDecision.jsonl.
 
+## Additional option - **local-inference**
+```
+python3 evaluate.py common \
+--input_path data/{common-evaluation-file}.jsonl \
+--model inhouse-local \
+--model_path {model_path} \
+--tool_parser {template_name}
+```
+- It must be run in a GPU environment compatible with vLLM.
+
+### local-inference example
+```
+python3 evaluate.py common \
+--input_path data/FunctionChat-CallDecision.jsonl \
+--model inhouse-local \
+--model_path /data/nlp-public_338/models/decoder/internal/kanana-essence-8b-fc-v1.0.1-stage1-rc.20 \
+--tool_parser functionary_v3_llama_31
+```
 
 # License
 

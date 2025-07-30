@@ -1,5 +1,8 @@
 import os
 import json
+import time
+import requests
+import subprocess
 import pandas as pd
 from tqdm import tqdm
 """
@@ -100,3 +103,63 @@ def create_directory_if_not_exists(directory_path):
         print(f"Directory '{directory_path}' created successfully or already exists.")
     except Exception as e:
         print(f"Failed to create directory '{directory_path}'. Error: {e}")
+
+
+def wait_for_server(url, timeout=500):
+    start_time = time.time()
+    with tqdm(total=timeout, desc="Waiting") as pbar:
+        while time.time() - start_time < timeout:
+            pbar.update(10)
+            try:
+                response = requests.get(url)  # noqa: E501
+                if response.status_code == 200:
+                    print("<<< Server is ready! >>>")
+                    return True
+            except Exception:
+                # print("retry", e)
+                pass
+            time.sleep(10)
+    raise Exception("Server did not start within the timeout period.")
+
+
+def compare_file_line_counts(file_a, file_b):
+    try:
+        with open(file_a, 'r') as fa, open(file_b, 'r') as fb:
+            lines_a = sum(1 for _ in fa)
+            lines_b = sum(1 for _ in fb)
+            return lines_a == lines_b
+    except FileNotFoundError as e:
+        print(f"File not found: {e}")
+        return False
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return False
+
+
+def convert_tools_alphachat(tools):
+    '''
+    Modify the tools format for LiteLLM
+    '''
+    gemini_tools = []
+    for idx, tool in enumerate(tools):
+        if tool['function']['parameters'] == {}:
+            tool['function']['parameters'] = { "type": "object", "properties": {}, "required": [] }
+        gemini_tools.append(tool)
+    return gemini_tools
+
+
+def get_git_info():
+    def run_git_command(cmd):
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+        return result.stdout.strip()
+    branch = run_git_command(["git", "rev-parse", "--abbrev-ref", "HEAD"])
+    commit = run_git_command(["git", "rev-parse", "HEAD"])[:7]  # 짧은 커밋 해시
+    tag = run_git_command(["git", "describe", "--tags", "--abbrev=0"])
+
+    if branch.startswith("tags/"):
+        return branch.replace("tags/", "")
+    elif branch == "HEAD":
+        # detached 상태
+        return [tag, f"deteched#{commit}"]
+    else:
+        return [tag, f"{branch}#{commit}"]

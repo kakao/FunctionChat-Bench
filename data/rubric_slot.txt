@@ -26,6 +26,7 @@ In the [Query], a user asks the assistant a question or makes a request, and in 
 - Answered arbitrarily based on their own knowledge without considering the function call.
 - Slot filling question made with omissions of some required additional information.
 - Redundant question related to information already provided.
+- In dialogs conducted in Korean, the assistant's full sentence was generated only in another language (such as English or Chinese).
 ***
 [END DATA]
 Does the submission meet the criteria? Begin by explaining your reasoning step by step in Korean, without immediately revealing the outcome. Subsequently, on a separate line, clearly indicate whether it is a "pass" or "fail". For clarity, repeat your final decision once more (without quotes or punctuation, literally).

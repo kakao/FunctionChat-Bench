@@ -21,14 +21,15 @@ def validate_params(kwargs):
     }
     tools_type_list = ['all', '4_close', '4_random', '8_close', '8_random']
     for key, expected_type in expected_types.items():
-        print(key, kwargs.get(key))
-        if key in kwargs and not isinstance(kwargs[key], expected_type):
-            raise ValueError(f"Expected type for {key} is {expected_type}, but got {type(kwargs[key])}.")
         if key == 'tools_type' and 'tools_type' in kwargs:
-            if not isinstance(kwargs[key], expected_type):
+            if kwargs[key] is None:
+                pass
+            elif not isinstance(kwargs[key], expected_type):
                 raise ValueError(f"Expected type for {key} is {expected_type}, but got {type(kwargs[key])}.")
-            if kwargs[key] not in tools_type_list:
+            elif kwargs[key] not in tools_type_list:
                 raise ValueError(f"tools_type must be one of {tools_type_list}.")
+        elif key in kwargs and not isinstance(kwargs[key], expected_type):
+            raise ValueError(f"Expected type for {key} is {expected_type}, but got {type(kwargs[key])}.")
 
 
 def type_check(validate: Callable[[Any, Any], None]):
