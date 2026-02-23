@@ -186,6 +186,27 @@ class CommonEvaluationRegistor(AbstractEvaluationRegistor):
         else:
             print(f"  total : 0.00")
 
+        # pass or fail group by serial_num
+        scenario_result = {}
+        for category in self.eval_dic_per_category:
+            for pass_fail in self.eval_dic_per_category[category]:
+                for serial_num in self.eval_dic_per_category[category][pass_fail]:
+                    if serial_num not in scenario_result:
+                        scenario_result[serial_num] = {}
+                    scenario_result[serial_num][category] = True if pass_fail == PASS_STR else False
+        multiple_category = any([len(results) > 1 for _, results in scenario_result.items()])
+        if multiple_category:
+            # 동일한 serial_num으로 여러 개의 category를 갖고 있는 경우 teacher forcing evaluation으로 간주한다.
+            pass_cnt, fail_cnt = 0, 0
+            for _, results in scenario_result.items():
+                if all(results.values()):
+                    pass_cnt += 1
+                else:
+                    fail_cnt += 1
+            print("SerialNum Score")
+            print(f"  passed : {pass_cnt:4d}/{len(scenario_result)} ({pass_cnt/len(scenario_result):.2f})")
+            print(f"  failed : {fail_cnt:4d}/{len(scenario_result)} ({fail_cnt/len(scenario_result):.2f})")
+
     def get_score(self):
         score_dict = {}
         if len(self.eval_dic) == 0:
@@ -273,7 +294,7 @@ class DialogEvaluationRegistor(AbstractEvaluationRegistor):
         score_dict['total_pass_cnt'] = tot_pass_cnt
         score_dict['total_cnt'] = self.max_size
         score_dict['avg(micro)'] = tot_pass_cnt/self.max_size
-        return score_dict    
+        return score_dict
 
 
 class SingleCallEvaluationRegistor(AbstractEvaluationRegistor):

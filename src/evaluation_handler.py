@@ -40,6 +40,34 @@ CUR_PATH = os.path.dirname(os.path.abspath(__file__))
 REPO_PATH = '/'.join(CUR_PATH.split('/')[:-1])
 
 
+class ExactEvalResponse:
+    TC_DIFF_LEN = "tool_calls length mismatch"
+    IS_NOT_CALL = "skip evaluation, because type_of_output is not CALL"
+    NONE_RESPONSE = "skip evaluation, because model response is None"
+
+    @classmethod
+    def create(cls, content: str, exact: str = "fail") -> dict:
+        return {
+            "id": "exact-match",
+            "choices": [{
+                "finish_reason": "stop",
+                "index": 0,
+                "message": {"content": cls.make_content(content, exact), "role": "assistant"},
+                "function_call": None,
+                "tool_calls": None,
+            }],
+            "exact": exact
+        }
+
+    @classmethod
+    def make_content(cls, content: str, pass_or_fail: str = "fail"):
+        return f"exact-eval\n{content}\n\n{pass_or_fail}\n{pass_or_fail}\n"
+
+    @classmethod
+    def check_content(cls, response: dict, content: str, pass_or_fail: str = "fail"):
+        return response["choices"][0]["message"]["content"] == cls.make_content(content, pass_or_fail)
+
+
 class EvaluationHandler:
     """
     A class to handle different types of evaluations for models.
@@ -87,7 +115,7 @@ class EvaluationHandler:
 
     def load_api_executor(self, cfg: dict) -> Union[OpenaiModelAzureAPI, OpenaiModelAPI]:
         api_type = cfg.get('api_type', None)
-        
+
         if api_type == "azure":
             return OpenaiModelAzureAPI(
                 instance=cfg.get('instance'),
@@ -126,7 +154,9 @@ class EvaluationHandler:
         response = json.dumps(out, ensure_ascii=False)
 
         if output_type == CALL:
-            acceptable_arguments = json.dumps(inp['acceptable_arguments'], ensure_ascii=False)
+            # common, sequential, parallel 포맷에서는 rubric을 위한 acceptable_arguments를 사용하지 않지만
+            # SingleCall, Dialog 포맷은 변경사항 없으므로 acceptable_arguments 사용 코드를 남겨놓습니다.
+            acceptable_arguments = json.dumps(self.get_acceptable_arguments(inp), ensure_ascii=False)
             return rubric_prompt.format(
                 tools=tools, query=query,
                 ground_truth=ground_truth_json,
@@ -166,7 +196,7 @@ class EvaluationHandler:
             if isinstance(val1, str) and isinstance(val2, str):
                 val1, val2 = val1.replace(' ', '').lower(), val2.replace(' ', '').lower()
             return val1 == val2
-    
+
         try:
             j_g_func_args = json.loads(g_func_args)
             j_p_func_args = json.loads(p_func_args)
@@ -182,70 +212,62 @@ class EvaluationHandler:
             p_val = j_p_func_args.get(key)
             if not compare_value(p_val, val):
                 acceptable_values = acceptable_arguments.get(key, [])
-                if isinstance(acceptable_values, list) and not any(compare_value(p_val, acc) for acc in acceptable_values):
+                if isinstance(acceptable_values, list) and not any(compare_value(p_val, a_val) for a_val in acceptable_values):
                     return False
                 if isinstance(acceptable_values, str) and not compare_value(p_val, acceptable_values):
                     return False
         return True
 
-    def _default_evaluate_response(self, message: str = "skip evaluation", exact: str = "fail") -> dict:
-        return {
-            "id": "exact-match",
-            "choices": [{
-                "finish_reason": "stop",
-                "index": 0,
-                "message": {"content": message, "role": "assistant"},
-                "function_call": None,
-                "tool_calls": None,
-            }],
-            "exact": exact
-        }
-
     def exact_match(self, inp: dict, out: dict, debug: bool = False) -> tuple[bool, dict, str]:
+        def extract_function(tool, acceptable_arguments: dict = None):
+            """
+            ground_truth 내부에 acceptable_arguments가 있으면 해당 값을 반환한다.
+            ground_truth 내부에 acceptable_arguments가 없으면 입력된 acceptable_arguments를 반환한다.
+            """
+            func = tool.get('function', {})
+            name = func.get('name')
+            args = func.get('arguments') or "{}"
+            exts = self.get_acceptable_arguments(func) or acceptable_arguments
+            return name, args, exts
+        def compare_function(func):
+            return (func.get("name", ""), func.get("arguments", ""), func.get("acceptable_arguments", ""))
+
+        msg = ""
         input_prompt = ""
-        is_pass = "fail"
         if not inp['type_of_output'] == CALL:
-            return False, self._default_evaluate_response(), input_prompt
+            return False, ExactEvalResponse.create(ExactEvalResponse.IS_NOT_CALL), input_prompt
 
         if out is None:
-            return False, self._default_evaluate_response(message="skip evaluation, because model response is None"), input_prompt
+            return False, ExactEvalResponse.create(ExactEvalResponse.NONE_RESPONSE), input_prompt
 
-        is_pass_bool = False
         ground_truth = inp.get('ground_truth', {})
         acceptable_arguments = self.get_acceptable_arguments(inp)
-        diff_case_msg = ""
 
-        
-        if 'tool_calls' in ground_truth:
-            ground_truth_func = ground_truth.get('tool_calls', [{}])[0].get('function', {})
-        else:
-            ground_truth_func = ground_truth
-            
-        g_func_name = ground_truth_func.get('name')
-        g_func_args = ground_truth_func.get('arguments')
+        ground_calls = ground_truth.get("tool_calls", [ground_truth])
+        ground_calls = sorted(ground_calls, key=lambda x: compare_function(x.get("function", {})))
+        output_calls = list(out.get("tool_calls", []) or [])
+        output_calls = sorted(output_calls, key=lambda x: compare_function(x.get("function", {})))
 
-        predict_tools = out.get('tool_calls', [])
-        if predict_tools:
-            predicted_func = predict_tools[0].get('function', {})
-            p_func_name = predicted_func.get('name')
-            p_func_args = predicted_func.get('arguments')
+        if len(output_calls) != len(ground_calls):
+            return False, ExactEvalResponse.create(ExactEvalResponse.TC_DIFF_LEN), input_prompt
 
-            if g_func_name == p_func_name:
-                if self.compare_arguments(g_func_args, p_func_args, acceptable_arguments):
-                    is_pass = "pass"
-                    is_pass_bool = True
-                else:
-                    diff_case_msg += f"Function arguments mismatch: g({g_func_args}) | p({p_func_args})\n"
+        # Since the arguments of output_call may correspond to acceptable_arguments of function in ground_tools,
+        # they should be compared with full scan
+        for ground_call in ground_calls:
+            g_func_name, g_func_args, g_func_exts = extract_function(ground_call, acceptable_arguments)
+            for output_call in output_calls:
+                p_func_name, p_func_args, _ = extract_function(output_call)
+                if g_func_name == p_func_name and \
+                   self.compare_arguments(g_func_args, p_func_args, g_func_exts):
+                    break
             else:
-                diff_case_msg += f"Function name mismatch: g({g_func_name}) | p({p_func_name})\n"
+                # no ground_call in output_calls
+                logging.debug(f"\nInput: {inp}\nOutput: {out}\nEvaluation Message: {msg}")
+                msg = f"Function not found {g_func_name} {g_func_args} {g_func_exts}"
+                return False, ExactEvalResponse.create(msg), input_prompt
+            output_calls.remove(output_call)
 
-        msg = f"exact-eval\n{diff_case_msg}\n\n{is_pass}\n{is_pass}\n"
-
-        if debug:
-            logging.debug(f"\nInput: {inp}\nOutput: {out}")
-            logging.debug(f"Evaluation Message: {msg}")
-
-        return is_pass_bool, self._default_evaluate_response(msg, is_pass), input_prompt
+        return True, ExactEvalResponse.create("", "pass"), input_prompt
 
     def _get_batch_info_in_cached_meta(self, meta_log_file: str, client) -> tuple[Optional[str], Optional[str]]:
         from types import SimpleNamespace
@@ -262,6 +284,15 @@ class EvaluationHandler:
         import sys
         import itertools
         from openai import OpenAI
+
+        # check whether batch_file is valid jsonl file
+        try:
+            if not [json.loads(line) for line in open(batch_file)]:
+                # no data to process in batch
+                return []
+        except json.decoder.JSONDecodeError:
+            raise Exception(f"invalid batch file format")
+
         client = OpenAI(api_key=self.openai_apikey)
         batch_id, batch_status = self._get_batch_info_in_cached_meta(self.meta_log_file, client)
         if batch_status is None:
@@ -307,6 +338,17 @@ class EvaluationHandler:
                 batch_result.append(json.loads(line.strip()))
         if len(batch_result) == 0:
             raise Exception(f"batch result is empty. check your batch output : https://platform.openai.com/batches/{batch_id}")
+        try:
+            if batch.input_file_id:
+                client.files.delete(batch.input_file_id)
+            if batch.error_file_id:
+                client.files.delete(batch.error_file_id)
+            if batch.output_file_id:
+                client.files.delete(batch.output_file_id)
+        except Exception as e:
+            # do nothing
+            pass
+
         return batch_result
 
     def fetch(self, inp, out, debug=False):
@@ -376,7 +418,7 @@ class EvaluationHandler:
         print(f"[[model evaluation file : {eval_log_file_path}]]")
 
         self._save_evaluation_result(model_name,llm_judge_name, model_path, eval_subtype)
-        
+
 
     def _create_batch_file(self, batch_file, outputs):
         input_prompts = []
@@ -384,15 +426,19 @@ class EvaluationHandler:
             for idx, (is_pass, response_formatter) in enumerate(tqdm(outputs, desc="Processing make batch file")):
                 inp = response_formatter.request_model
                 out = response_formatter.response_model
-                if not is_pass:
-                    custom_id = f"{self.evaluation_type}_{idx}"
-                    input_prompt = self.get_input_prompt(inp, out)
-                    messages = [{'role': 'user', 'content': input_prompt}]
-                    reformed_json = openai_utils.get_openai_batch_format(custom_id, self.openai_model, messages, self.max_tokens)
-                    input_prompts.append(input_prompt)
-                    fp.write(json.dumps(reformed_json, ensure_ascii=False)+'\n')
+                res = response_formatter.evaluate_response
+                if is_pass:
+                    continue
+                if ExactEvalResponse.check_content(res, ExactEvalResponse.TC_DIFF_LEN):
+                    continue
+                custom_id = f"{self.evaluation_type}_{idx}"
+                input_prompt = self.get_input_prompt(inp, out)
+                messages = [{'role': 'user', 'content': input_prompt}]
+                reformed_json = openai_utils.get_openai_batch_format(custom_id, self.openai_model, messages, self.max_tokens)
+                input_prompts.append(input_prompt)
+                fp.write(json.dumps(reformed_json, ensure_ascii=False)+'\n')
         return input_prompts
-       
+
     def _process_rubric_evaluation(self, outputs, is_batch=False):
         if is_batch:
             input_prompts = self._create_batch_file(self.batch_file, outputs)
@@ -409,15 +455,19 @@ class EvaluationHandler:
             for idx, (is_pass, response_formatter) in enumerate(tqdm(outputs, desc="Processing rubric eval")):
                 inp = response_formatter.request_model
                 out = response_formatter.response_model
-                if not is_pass:
-                    evaluate_response, input_prompt = self.fetch(inp, out)
-                    response_formatter = RESPONSE_FORMATTER_OBJ[self.evaluation_type](
-                        request_model=inp,
-                        response_model=out,
-                        evaluate_prompt=input_prompt,
-                        evaluate_response=evaluate_response
-                    )
-                    outputs[idx] = (True, response_formatter)
+                res = response_formatter.evaluate_response
+                if is_pass:
+                    continue
+                if ExactEvalResponse.check_content(res, ExactEvalResponse.TC_DIFF_LEN):
+                    continue
+                evaluate_response, input_prompt = self.fetch(inp, out)
+                response_formatter = RESPONSE_FORMATTER_OBJ[self.evaluation_type](
+                    request_model=inp,
+                    response_model=out,
+                    evaluate_prompt=input_prompt,
+                    evaluate_response=evaluate_response
+                )
+                outputs[idx] = (True, response_formatter)
         return outputs
 
     def _save_evaluation_result(self, model_name, llm_judge_name, model_path, eval_subtype):
@@ -453,7 +503,7 @@ class EvaluationHandler:
                 common_score = self.eval_reg.get_score()
         else:
             raise ValueError(f"Unsupported evaluation type: {self.evaluation_type}")
-        
+
         fcb_version, fcb_environments = utils.get_git_info()
 
         with open(eval_score_path, 'w', encoding='utf-8') as f:
@@ -508,7 +558,7 @@ class EvaluationHandler:
             eval_subtype = self.evaluation_type
         # check cached file
         self._set_batch_file_names(model_name)
-        
+
         self.eval_reg.set_eval_output(
             self.load_cached_evaluation_result(eval_file_path, len(input_set)) if not reset else []
         )

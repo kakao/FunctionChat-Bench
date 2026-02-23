@@ -10,9 +10,6 @@ You are evaluating a response submitted for a specific function call task agains
 [Ground Truth]:
 {ground_truth}
 
-[Acceptable Arguments]:
-{acceptable_arguments}
-
 [Submission]:
 {response}
 ***
@@ -22,14 +19,15 @@ Determine if the [Submission] is a "pass" or "fail". In this [Submission], the a
 - Selected the appropriate function and accurately named it.
 - All keys in arguments match those presented in [Ground Truth].
 - Each argument value matches the type specified in [Available Functions].
-- Each value in arguments was created appropriately, as presented in [Ground Truth]. For string types, a [Submission] passes if its argument matches or refers to the same content or subject as [Ground Truth] or [Acceptable arguments], even without an exact text match.
-- If 'Only ground truth is allowed.' appears under [Acceptable arguments], it means that only when the argument value exactly matches [Ground Truth] will it be considered a pass.
-"fail" 
+- Each value in arguments was created appropriately, as presented in [Ground Truth]. For string types, a [Submission] passes if its argument matches or refers to the same content or subject as [Ground Truth], even without an exact text match.
+- Every rule that applies to arguments in the [Ground Truth] equally applies to acceptable_arguments.
+- If 'Only ground truth is allowed.' appears under acceptable_arguments, it means that only when the argument value exactly matches will it be considered a pass.
+"fail"
 - Selection error: Did not select a function or selected a different function than the one presented in [Ground Truth].
 - Function name error: Failed to accurately create the function name as presented in [Ground Truth] (different spelling).
 - Argument key error: Created a key not presented, or different from those presented in [Ground Truth].
 - Argument value type error: The type of the created argument value is inappropriate (not created as the type specified in the description of [Available Functions]; for instance, if a parameter is defined to be an integer type but is created as a floating-point type, it is considered incorrect).
-- Logical error in argument value: The created argument value exceeds the permissible range as per [Ground Truth] and [Acceptable Arguments].
+- Logical error in argument value: The created argument value exceeds the permissible range as per [Ground Truth].
 ***
 [END DATA]
 Does the submission meet the criteria? Begin by explaining your reasoning step by step in Korean, without immediately revealing the outcome. Subsequently, on a separate line, clearly indicate whether it is a "pass" or "fail". For clarity, repeat your final decision once more (without quotes or punctuation, literally).

@@ -37,6 +37,14 @@ The FunctionChat-Bench consists of the following datasets:
     - Defines four types of situations and evaluates how accurately the LM provides appropriate responses in each.
     - Examples of each of the four types of situations are included below to aid understanding within the dialog evaluation. 
     - In the dialog evaluation, it assesses how accurately the assistant provides appropriate responses for each type of situation
+
+        | Category | Turns | Description |
+        |----------|------:|-------------|
+        | **call** | 70 | Accuracy of function selection and parameter extraction |
+        | **completion** | 71 | Quality of responses generated from function execution results |
+        | **slot** | 36 | Ability to identify and query missing required parameters |
+        | **relevance** | 23 | Appropriateness of responses when no suitable function is available |
+
         - **call**: An LM must accurately select functions and extract the necessary parameters to respond to a user prompt
             
             ```
@@ -105,8 +113,68 @@ The FunctionChat-Bench consists of the following datasets:
              
             assistant: 문자 전송 기능은 없습니다.
             ```
-- **CallDecision** 
+- **CallDecision**
+    - When user intent matches the target function, evaluates the LM's ability to choose the correct response type based on input conditions.
+    - Contains 606 test cases.
 
+        | Category | Cases | Description |
+        |----------|------:|-------------|
+        | **CALL** | 100 | Accuracy of function invocation when all required parameters are present |
+        | **REJECT** | 100 | Ability to decline requests when no suitable function exists |
+        | **SLOT-all** | 100 | Ability to query all missing parameters when none are provided |
+        | **SLOT-some** | 306 | Ability to identify and query only the specific missing parameters |
+
+- **Parallel**
+    - Evaluates function call accuracy and final answer delivery in scenarios where 2+ function calls can be executed simultaneously without order dependency.
+    - When a user requests multiple independent actions at once, the model should call all required functions together in a single turn.
+    - Contains 100 test cases.
+
+        | Category | Cases | Description |
+        |----------|------:|-------------|
+        | **CALL-same2** | 20 | Accuracy of calling the **same** function **2 times** simultaneously |
+        | **CALL-same3** | 10 | Accuracy of calling the **same** function **3 times** simultaneously |
+        | **CALL-diff2** | 40 | Accuracy of calling **2 different** functions simultaneously |
+        | **COMPLETION-same2** | 10 | Quality of response from **2 same** parallel function call results |
+        | **COMPLETION-same3** | 5 | Quality of response from **3 same** parallel function call results |
+        | **COMPLETION-diff2** | 15 | Quality of response from **2 different** parallel function call results |
+
+    - Example:
+        ```
+        user: 지금 가장 가까운 ATM 찾아줘. 그리고 토비의 식사 알림을 오후 6시로 설정해줘.
+
+        assistant: tool_calls
+                   [{"function": {"name": "find_nearest_atm", "arguments": "{}"}},
+                    {"function": {"name": "schedule_pet_meals", "arguments": "{\"pet_name\": \"토비\", \"feeding_time\": \"18:00\"}"}}]
+        ```
+
+- **Sequential**
+    - Evaluates function call accuracy and final answer delivery in scenarios where 2+ function calls must be executed sequentially with order dependency.
+    - The output of one function call is needed as input for the next function call.
+    - Contains 60 test cases (20 scenarios × 3 steps: 1stCall, 2ndCall, finalAnswer).
+
+        | Category | Cases | Description |
+        |----------|------:|-------------|
+        | **1stCall** | 20 | Accuracy of the first function call in the sequential chain |
+        | **2ndCall** | 20 | Accuracy of the second call using the first call's result |
+        | **finalAnswer** | 20 | Quality of the final response after all sequential calls complete |
+
+    - Example:
+        ```
+        user: 이메일 보내줘. 제목은 '결제 확인 요청'이고, 메일 주소는 연락처에서 최예지로 검색하면 돼.
+
+        # Step 1 (1stCall): First, search for contact
+        assistant: tool_calls
+                   {"function": {"name": "search_contact", "arguments": "{\"name\": \"최예지\"}"}}
+
+        # Step 2 (2ndCall): Then, send email with the retrieved address
+        tool: {"name": "최예지", "email": "choi@email.com"}
+        assistant: tool_calls
+                   {"function": {"name": "send_email", "arguments": "{\"receiver\": \"choi@email.com\", ...}"}}
+
+        # Step 3 (finalAnswer): Finally, confirm to user
+        tool: {"status": "success"}
+        assistant: 이메일이 성공적으로 발송되었습니다.
+        ```
 
 ## Evaluation Method
 
@@ -176,7 +244,21 @@ python3 evaluate.py common \
 --input_path data/FunctionChat-CallDecision.jsonl \
 --temperature 0.1 \
 --model {model_name} \
---api_key {api_key} 
+--api_key {api_key}
+
+# run parallel evaluation
+python3 evaluate.py common \
+--input_path data/FunctionChat-Parallel.jsonl \
+--temperature 0.1 \
+--model {model_name} \
+--api_key {api_key}
+
+# run sequential evaluation
+python3 evaluate.py common \
+--input_path data/FunctionChat-Sequential.jsonl \
+--temperature 0.1 \
+--model {model_name} \
+--api_key {api_key}
 ```
 - A model_name like `gpt-3.5-turbo-0125` is needed. 
 
@@ -210,7 +292,25 @@ python3 evaluate.py common \
 --temperature 0.1 \
 --model inhouse \
 --base_url {base_url} \
---api_key {api_key} 
+--api_key {api_key} \
+--served_model_name {model_name}
+
+# run parallel evaluation
+python3 evaluate.py common \
+--input_path data/FunctionChat-Parallel.jsonl \
+--temperature 0.1 \
+--model inhouse \
+--base_url {base_url} \
+--api_key {api_key} \
+--served_model_name {model_name}
+
+# run sequential evaluation
+python3 evaluate.py common \
+--input_path data/FunctionChat-Sequential.jsonl \
+--temperature 0.1 \
+--model inhouse \
+--base_url {base_url} \
+--api_key {api_key} \
 --served_model_name {model_name}
 ```
 
@@ -246,6 +346,22 @@ python3 evaluate.py singlecall \
 # run calldecision evaluation
 python3 evaluate.py common \
 --input_path data/FunctionChat-CallDecision.jsonl \
+--temperature 0.1 \
+--model ${model_name} \
+--api_key ${api_key} \
+--base_url ${base_url}
+
+# run parallel evaluation
+python3 evaluate.py common \
+--input_path data/FunctionChat-Parallel.jsonl \
+--temperature 0.1 \
+--model ${model_name} \
+--api_key ${api_key} \
+--base_url ${base_url}
+
+# run sequential evaluation
+python3 evaluate.py common \
+--input_path data/FunctionChat-Sequential.jsonl \
 --temperature 0.1 \
 --model ${model_name} \
 --api_key ${api_key} \
@@ -368,7 +484,10 @@ python3 evaluate.py common \
 ```
 - It is an option developed for the expansion of the evaluation set.
 - {common-evaluation-file}.jsonl : An evaluation dataset file in a format that follows the common option.
-- Currently, the only evaluation set compatible with the common option is FunctionChat-CallDecision.jsonl.
+- Evaluation sets compatible with the common option:
+  - `FunctionChat-CallDecision.jsonl` - Call decision evaluation (606 cases)
+  - `FunctionChat-Parallel.jsonl` - Parallel function calling evaluation (100 cases)
+  - `FunctionChat-Sequential.jsonl` - Sequential function calling evaluation (60 cases)
 
 ## Additional option - **local-inference**
 ```

@@ -125,12 +125,11 @@ class CommonPayloadCreator(AbstractPayloadCreator):
             print("[[reset!! create requests jsonl file]]")
         # 2. create requests json list
         for idx, test_input in enumerate(tqdm(test_set)):
-            # test_input keys = ['serial_num', 'category', 'input_message', 'input_tools', 'type_of_output', 'ground_truth', 'acceptable_arguments']
+            # test_input keys = ['serial_num', 'category', 'input_message', 'input_tools', 'type_of_output', 'ground_truth']
             serial_num = test_input['serial_num']
             category = test_input['category']
             tools = test_input['input_tools']
             ground_truth = test_input['ground_truth']
-            acceptable_arguments = test_input['acceptable_arguments']
             type_of_output = test_input['type_of_output']
             arguments = {}
             arguments['serial_num'] = serial_num
@@ -138,7 +137,6 @@ class CommonPayloadCreator(AbstractPayloadCreator):
             arguments['tools'] = tools
             arguments['ground_truth'] = ground_truth
             arguments['type_of_output'] = type_of_output
-            arguments['acceptable_arguments'] = acceptable_arguments
             arguments['messages'] = test_input['input_messages']
             arguments['temperature'] = self.temperature
             arguments['tool_choice'] = 'auto'

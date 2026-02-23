@@ -50,14 +50,6 @@ class RequestFormatter(BaseModel):
     temperature: float
     tool_choice: str
     ground_truth: dict
-    acceptable_arguments: Optional[str] = None
-
-    @root_validator(pre=True)
-    def ensure_acceptable_arguments(cls, values):
-        acceptable_arguments = values.get('acceptable_arguments', '')
-        if isinstance(acceptable_arguments, dict):
-            values['acceptable_arguments'] = json.dumps(acceptable_arguments, ensure_ascii=False)
-        return values
 
     @root_validator(pre=True)
     def clean_ground_truth(cls, values):
@@ -98,12 +90,28 @@ class CommonRequestFormatter(RequestFormatter):
 
 class DialogRequestFormatter(RequestFormatter):
     type_of_output: str
+    acceptable_arguments: Optional[str] = None
+
+    @root_validator(pre=True)
+    def ensure_acceptable_arguments(cls, values):
+        acceptable_arguments = values.get('acceptable_arguments', '')
+        if isinstance(acceptable_arguments, dict):
+            values['acceptable_arguments'] = json.dumps(acceptable_arguments, ensure_ascii=False)
+        return values
 
 
 class SingleCallRequestFormatter(RequestFormatter):
     messages: list
     tools: list
     tools_type: str
+    acceptable_arguments: Optional[str] = None
+
+    @root_validator(pre=True)
+    def ensure_acceptable_arguments(cls, values):
+        acceptable_arguments = values.get('acceptable_arguments', '')
+        if isinstance(acceptable_arguments, dict):
+            values['acceptable_arguments'] = json.dumps(acceptable_arguments, ensure_ascii=False)
+        return values
 
 
 class ResponseFormatter(BaseModel):
@@ -149,7 +157,7 @@ class ResponseFormatter(BaseModel):
 
 class CommonResponseFormatter(ResponseFormatter):
     tsv_keys: Optional[List[str]] = ['serial_num', 'is_pass', 'category', 'type_of_output',
-                                     'ground_truth', 'acceptable_arguments',
+                                     'ground_truth',
                                      'model_output', 'reasoning', 'input_messages', 'tools']
 
     @root_validator(pre=True)
@@ -162,7 +170,6 @@ class CommonResponseFormatter(ResponseFormatter):
         category = model_request['category']
         type_of_output = model_request['type_of_output']
         ground_truth = json.dumps(model_request['ground_truth'], ensure_ascii=False)
-        acceptable_arguments = json.dumps(model_request['acceptable_arguments'], ensure_ascii=False)
         model_output = json.dumps(model_response, ensure_ascii=False)
         reasoning = json.dumps({'reasoning': evaluate_response['choices'][0]['message']['content']}, ensure_ascii=False)
         messages = json.dumps(model_request['messages'], ensure_ascii=False)
@@ -173,7 +180,6 @@ class CommonResponseFormatter(ResponseFormatter):
             'category': category,
             'type_of_output': type_of_output,
             'ground_truth': ground_truth,
-            'acceptable_arguments': acceptable_arguments,
             'model_output': model_output,
             'reasoning': reasoning,
             'messages': messages,
@@ -246,4 +252,4 @@ class DialogResponseFormatter(ResponseFormatter):
             'tools': tools
         }
         return values
-    
+
