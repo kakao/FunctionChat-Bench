@@ -12,3 +12,4 @@ pydantic-settings==2.0.2
 pydantic_core==2.18.2
 numpy==1.24.0
 qwen_agent==0.0.10
+testresources==2.0.1
